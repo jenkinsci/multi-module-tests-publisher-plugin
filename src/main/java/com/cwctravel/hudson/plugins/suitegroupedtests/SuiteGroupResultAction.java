@@ -3,6 +3,7 @@ package com.cwctravel.hudson.plugins.suitegroupedtests;
 import hudson.XmlFile;
 import hudson.model.BuildListener;
 import hudson.model.AbstractBuild;
+import hudson.tasks.junit.TestAction;
 import hudson.tasks.test.AbstractTestResultAction;
 import hudson.tasks.test.TestObject;
 import hudson.util.XStream2;
@@ -10,9 +11,13 @@ import hudson.util.XStream2;
 import java.io.File;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerProxy;
 
 import com.cwctravel.hudson.plugins.suitegroupedtests.junit.CaseResult;
@@ -22,18 +27,29 @@ import com.cwctravel.hudson.plugins.suitegroupedtests.junit.TestResult;
 import com.thoughtworks.xstream.XStream;
 
 public class SuiteGroupResultAction extends AbstractTestResultAction<SuiteGroupResultAction> implements StaplerProxy {
-	static public final String RESULT_DATA_FILENAME = "testResultGroups.xml";
+	public static abstract class Data {
+		/**
+		 * Returns all TestActions for the testObject.
+		 * 
+		 * @return Can be empty but never null. The caller must assume that the returned list is read-only.
+		 */
+		public abstract List<? extends TestAction> getTestAction(TestObject testObject);
+	}
+
+	public static final String RESULT_DATA_FILENAME = "testResultGroups.xml";
+
 	private int failCount;
 	private int skipCount;
 	private Integer totalCount; // TODO: can we make this just a normal int, and find another way to check
 	// whether we're populated yet? (This technique is borrowed from hudson core TestResultAction.)
+	private List<Data> testData = new ArrayList<Data>();
 
 	/**
 	 * Store the result group itself in a separate file so we don't eat up too much memory.
 	 */
 	private transient WeakReference<SuiteGroupResult> resultGroupReference;
 
-	public SuiteGroupResultAction(AbstractBuild owner, SuiteGroupResult r, BuildListener listener) {
+	public SuiteGroupResultAction(AbstractBuild<?, ?> owner, SuiteGroupResult r, BuildListener listener) {
 		super(owner);
 		setResult(r, listener);
 	}
@@ -100,6 +116,22 @@ public class SuiteGroupResultAction extends AbstractTestResultAction<SuiteGroupR
 		return totalCount;
 	}
 
+	public List<TestAction> getActions(TestObject object) {
+		List<TestAction> result = new ArrayList<TestAction>();
+		// Added check for null testData to avoid NPE from issue 4257.
+		if(testData != null) {
+			for(Data data: testData) {
+				result.addAll(data.getTestAction(object));
+			}
+		}
+		return Collections.unmodifiableList(result);
+
+	}
+
+	public void setData(List<Data> testData) {
+		this.testData = testData;
+	}
+
 	/**
 	 * Get the result that this action represents. If necessary, the result will be loaded from disk.
 	 * 
@@ -163,11 +195,6 @@ public class SuiteGroupResultAction extends AbstractTestResultAction<SuiteGroupR
 	}
 
 	@Override
-	public String getDescription(TestObject testObject) {
-		return getResult().getDescription();
-	}
-
-	@Override
 	public void setDescription(TestObject testObject, String s) {
 		getResult().setDescription(s);
 	}
@@ -175,6 +202,17 @@ public class SuiteGroupResultAction extends AbstractTestResultAction<SuiteGroupR
 	@Override
 	public String getDisplayName() {
 		return "Test Results";
+	}
+
+	public String getRootUrl(TestObject testObject, TestAction testAction) {
+		return getRootUrl(testObject, testAction.getUrlName());
+	}
+
+	public String getRootUrl(TestObject testObject, String urlName) {
+		String buildUrl = testObject.getOwner().getUrl();
+		String testObjectUrl = testObject.getUrl();
+		String result = Stapler.getCurrentRequest().getContextPath() + (buildUrl.startsWith("/") ? "" : "/") + buildUrl + getUrlName() + (testObjectUrl.startsWith("/") ? "" : "/") + testObjectUrl + (testObjectUrl.endsWith("/") ? "" : "/") + urlName;
+		return result;
 	}
 
 	/**
@@ -198,10 +236,21 @@ public class SuiteGroupResultAction extends AbstractTestResultAction<SuiteGroupR
 
 	private static final XStream XSTREAM = new XStream2();
 
+	public static List<TestAction> getTestActions(TestObject testObject, AbstractTestResultAction<?> testResultAction) {
+		if(testResultAction != null && testResultAction instanceof SuiteGroupResultAction) {
+			SuiteGroupResultAction sgra = (SuiteGroupResultAction)testResultAction;
+			return sgra.getActions(testObject);
+		}
+		else {
+			return new ArrayList<TestAction>();
+		}
+	}
+
 	static {
 		XSTREAM.alias("suite-group", SuiteGroupResult.class);
 		XSTREAM.alias("result", TestResult.class);
 		XSTREAM.alias("suite", SuiteResult.class);
 		XSTREAM.alias("case", CaseResult.class);
 	}
+
 }

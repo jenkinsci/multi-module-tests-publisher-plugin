@@ -24,6 +24,7 @@
 package com.cwctravel.hudson.plugins.suitegroupedtests.junit;
 
 import hudson.model.AbstractBuild;
+import hudson.tasks.junit.TestAction;
 import hudson.tasks.junit.History;
 import hudson.tasks.test.MetaTabulatedResult;
 
@@ -37,6 +38,8 @@ import java.util.TreeMap;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.export.Exported;
+
+import com.cwctravel.hudson.plugins.suitegroupedtests.SuiteGroupResultAction;
 
 /**
  * Cumulative test result for a package.
@@ -67,6 +70,16 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 	@Override
 	public TestResult getParent() {
 		return parent;
+	}
+
+	@Override
+	public SuiteGroupResultAction getTestResultAction() {
+		return (SuiteGroupResultAction)super.getTestResultAction();
+	}
+
+	@Override
+	public List<TestAction> getTestActions() {
+		return SuiteGroupResultAction.getTestActions(this, getTestResultAction());
 	}
 
 	@Override
@@ -316,6 +329,14 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 
 	public String getDisplayName() {
 		return packageName;
+	}
+
+	public String getRootUrl(String urlName) {
+		return getTestResultAction().getRootUrl(this, urlName);
+	}
+
+	public String getRootUrl(TestAction testAction) {
+		return getTestResultAction().getRootUrl(this, testAction);
 	}
 
 	@Override

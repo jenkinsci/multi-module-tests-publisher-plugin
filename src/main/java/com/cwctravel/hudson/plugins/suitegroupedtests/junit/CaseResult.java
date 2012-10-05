@@ -26,6 +26,7 @@ package com.cwctravel.hudson.plugins.suitegroupedtests.junit;
 import static java.util.Collections.emptyList;
 import hudson.model.AbstractBuild;
 import hudson.model.Run;
+import hudson.tasks.junit.TestAction;
 import hudson.tasks.junit.History;
 import hudson.tasks.test.TestResult;
 
@@ -34,11 +35,14 @@ import java.text.ParseException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 import java.util.logging.Logger;
 
 import org.dom4j.Element;
 import org.jvnet.localizer.Localizable;
 import org.kohsuke.stapler.export.Exported;
+
+import com.cwctravel.hudson.plugins.suitegroupedtests.SuiteGroupResultAction;
 
 /**
  * One test result.
@@ -168,6 +172,16 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	@Override
 	public ClassResult getParent() {
 		return classResult;
+	}
+
+	@Override
+	public List<TestAction> getTestActions() {
+		return SuiteGroupResultAction.getTestActions(this, getTestResultAction());
+	}
+
+	@Override
+	public SuiteGroupResultAction getTestResultAction() {
+		return (SuiteGroupResultAction)super.getTestResultAction();
 	}
 
 	private static String getError(Element testCase) {
@@ -584,6 +598,14 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 		public boolean isRegression() {
 			return this == REGRESSION;
 		}
+	}
+
+	public String getRootUrl(String urlName) {
+		return getTestResultAction().getRootUrl(this, urlName);
+	}
+
+	public String getRootUrl(TestAction testAction) {
+		return getTestResultAction().getRootUrl(this, testAction);
 	}
 
 	@Override

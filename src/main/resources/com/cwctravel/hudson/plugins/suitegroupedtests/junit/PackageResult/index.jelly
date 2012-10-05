@@ -1,7 +1,7 @@
 <!--
 The MIT License
 
-Copyright (c) 2010 Yahoo!, Inc.
+Copyright (c) 2004-2010, Sun Microsystems, Inc., Kohsuke Kawaguchi, Tom Huybrechts, Yahoo!, Inc.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,30 +21,32 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
-<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
-	<tr>
-		<td colspan="3">
-			<table name="config" width="100%">				
-			    <f:entry title="JUnit Report File Mask">
-			        <f:textbox name="testResultFileMask" value="${instance.config.testResultFileMask}" ></f:textbox>
-			    </f:entry>
-			    <f:entry field="keepLongStdio" title="">
-					<f:checkbox name="keepLongStdio" checked="${instance.config.keepLongStdio}" title="${%Retain long standard output/error}"/>
-				</f:entry>
-				
-				<tr>
-					<td colspan="2">&amp;nbsp;</td>
-					<td>
-						<table width="100%">	
-							<f:entry>
-							 <f:descriptorList title="${%Test Report Publishers}"
-			                    descriptors="${instance.testDataPublisherDescriptors}"
-			                    instances="${instance.testDataPublishers}" />
-			                </f:entry>    
-			           </table>
-			        </td>
-			    </tr>            
-			</table>
-		</td>		
-	</tr>
+
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:test="/lib/test">
+  <l:layout title="${it.owner} ${it.displayName}">
+    <st:include page="sidepanel.jelly" />
+    <l:main-panel>
+      <h1><st:out value="${it.title}" /></h1>
+
+      <j:set var="prev" value="${it.previousResult}" />
+
+      <test:bar />
+
+      <div style="text-align:right;">
+        <a href="history">
+          ${%took(it.durationString)}
+        </a>
+      </div>
+
+      <t:editableDescription permission="${it.owner.UPDATE}"/>
+
+      <table style="margin-top: 1em; margin-left:0em;">
+	  <j:forEach var="action" items="${it.testActions}">
+          <st:include page="summary.jelly" from="${action}" optional="true" it="${action}" />
+	  </j:forEach>
+      </table>
+
+      <st:include page="body.jelly" />
+    </l:main-panel>
+  </l:layout>
 </j:jelly>

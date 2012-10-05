@@ -150,14 +150,9 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 		return parentAction;
 	}
 
-	/**
-	 * I wish the superclass didn't call this. FIXME. TODO.
-	 * 
-	 * @return
-	 */
 	@Override
 	public List<TestAction> getTestActions() {
-		return EMPTY_TEST_ACTIONS_LIST;
+		return SuiteGroupResultAction.getTestActions(this, getTestResultAction());
 	}
 
 	public void setParentAction(SuiteGroupResultAction parentAction) {
@@ -179,7 +174,7 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 
 	@Override
 	public String getTitle() {
-		return "Test Reports";
+		return "Test Report";
 	}
 
 	@Override
@@ -582,5 +577,13 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 	@Override
 	public History getHistory() {
 		return new com.cwctravel.hudson.plugins.suitegroupedtests.junit.History(this, 5000);
+	}
+
+	public String getRootUrl(String urlName) {
+		return getTestResultAction().getRootUrl(this, urlName);
+	}
+
+	public String getRootUrl(TestAction testAction) {
+		return getTestResultAction().getRootUrl(this, testAction);
 	}
 }

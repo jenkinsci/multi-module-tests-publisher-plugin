@@ -24,6 +24,7 @@
 package com.cwctravel.hudson.plugins.suitegroupedtests.junit;
 
 import hudson.model.AbstractBuild;
+import hudson.tasks.junit.TestAction;
 import hudson.tasks.junit.History;
 import hudson.tasks.test.TabulatedResult;
 import hudson.tasks.test.TestObject;
@@ -36,6 +37,8 @@ import java.util.List;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.export.Exported;
+
+import com.cwctravel.hudson.plugins.suitegroupedtests.SuiteGroupResultAction;
 
 /**
  * Cumulative test result of a test class.
@@ -66,6 +69,16 @@ public final class ClassResult extends TabulatedResult implements Comparable<Cla
 	@Override
 	public PackageResult getParent() {
 		return parent;
+	}
+
+	@Override
+	public List<TestAction> getTestActions() {
+		return SuiteGroupResultAction.getTestActions(this, getTestResultAction());
+	}
+
+	@Override
+	public SuiteGroupResultAction getTestResultAction() {
+		return (SuiteGroupResultAction)super.getTestResultAction();
 	}
 
 	@Override
@@ -253,6 +266,14 @@ public final class ClassResult extends TabulatedResult implements Comparable<Cla
 		else {
 			return super.getRelativePathFrom(it);
 		}
+	}
+
+	public String getRootUrl(String urlName) {
+		return getTestResultAction().getRootUrl(this, urlName);
+	}
+
+	public String getRootUrl(TestAction testAction) {
+		return getTestResultAction().getRootUrl(this, testAction);
 	}
 
 	@Override

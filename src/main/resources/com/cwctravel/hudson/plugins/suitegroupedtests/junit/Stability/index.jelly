@@ -21,30 +21,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
-<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
-	<tr>
-		<td colspan="3">
-			<table name="config" width="100%">				
-			    <f:entry title="JUnit Report File Mask">
-			        <f:textbox name="testResultFileMask" value="${instance.config.testResultFileMask}" ></f:textbox>
-			    </f:entry>
-			    <f:entry field="keepLongStdio" title="">
-					<f:checkbox name="keepLongStdio" checked="${instance.config.keepLongStdio}" title="${%Retain long standard output/error}"/>
-				</f:entry>
-				
-				<tr>
-					<td colspan="2">&amp;nbsp;</td>
-					<td>
-						<table width="100%">	
-							<f:entry>
-							 <f:descriptorList title="${%Test Report Publishers}"
-			                    descriptors="${instance.testDataPublisherDescriptors}"
-			                    instances="${instance.testDataPublishers}" />
-			                </f:entry>    
-			           </table>
-			        </td>
-			    </tr>            
-			</table>
-		</td>		
-	</tr>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:test="/lib/test">
+    <l:layout title="${it.owner} ${it.displayName}">
+        <st:include it="${it}" page="sidepanel.jelly" />
+        <l:main-panel>
+            <h1>${it.title}</h1>
+        </l:main-panel>
+    </l:layout>
 </j:jelly>

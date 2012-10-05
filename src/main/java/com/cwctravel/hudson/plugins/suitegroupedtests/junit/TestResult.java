@@ -25,6 +25,7 @@ package com.cwctravel.hudson.plugins.suitegroupedtests.junit;
 
 import hudson.model.AbstractBuild;
 import hudson.model.Run;
+import hudson.tasks.junit.TestAction;
 import hudson.tasks.junit.History;
 import hudson.tasks.test.AbstractTestResultAction;
 import hudson.tasks.test.MetaTabulatedResult;
@@ -144,6 +145,11 @@ public final class TestResult extends MetaTabulatedResult {
 	@Override
 	public AbstractBuild<?, ?> getOwner() {
 		return(parentAction == null ? null : parentAction.owner);
+	}
+
+	@Override
+	public SuiteGroupResultAction getTestResultAction() {
+		return (SuiteGroupResultAction)super.getTestResultAction();
 	}
 
 	@Override
@@ -503,6 +509,20 @@ public final class TestResult extends MetaTabulatedResult {
 
 		for(PackageResult pr: byPackages.values())
 			pr.freeze();
+	}
+
+	public String getRootUrl(String urlName) {
+		return getTestResultAction().getRootUrl(this, urlName);
+	}
+
+	public String getRootUrl(TestAction testAction) {
+		return getTestResultAction().getRootUrl(this, testAction);
+	}
+
+	@Override
+	public List<TestAction> getTestActions() {
+		return SuiteGroupResultAction.getTestActions(this, getTestResultAction());
+
 	}
 
 	@Override

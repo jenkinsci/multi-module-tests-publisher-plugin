@@ -1,5 +1,6 @@
 package com.cwctravel.hudson.plugins.suitegroupedtests;
 
+import hudson.DescriptorExtensionList;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
@@ -10,8 +11,10 @@ import hudson.matrix.MatrixBuild;
 import hudson.model.Action;
 import hudson.model.BuildListener;
 import hudson.model.Result;
+import hudson.model.Saveable;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
+import hudson.model.Descriptor;
 import hudson.remoting.VirtualChannel;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
@@ -19,6 +22,7 @@ import hudson.tasks.Publisher;
 import hudson.tasks.Recorder;
 import hudson.tasks.test.TestResultAggregator;
 import hudson.tasks.test.TestResultParser;
+import hudson.util.DescribableList;
 
 import java.io.File;
 import java.io.IOException;
@@ -36,6 +40,7 @@ import org.apache.tools.ant.types.FileSet;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 
+import com.cwctravel.hudson.plugins.suitegroupedtests.SuiteGroupResultAction.Data;
 import com.cwctravel.hudson.plugins.suitegroupedtests.junit.CaseResult;
 import com.cwctravel.hudson.plugins.suitegroupedtests.junit.ClassResult;
 import com.cwctravel.hudson.plugins.suitegroupedtests.junit.PackageResult;
@@ -54,12 +59,22 @@ public class SuiteGroupResultPublisher extends Recorder implements Serializable,
 
 	private SuiteTestGroupConfiguration config;
 
+	private DescribableList<TestDataPublisher, Descriptor<TestDataPublisher>> testDataPublishers;
+
 	@DataBoundConstructor
 	public SuiteGroupResultPublisher(SuiteTestGroupConfiguration config) {
 		if(config == null) {
 			throw new IllegalArgumentException("Null or empty list of configs passed in to SuiteTestResultGroupPublisher. Please file a bug.");
 		}
 		this.config = config;
+	}
+
+	public DescribableList<TestDataPublisher, Descriptor<TestDataPublisher>> getTestDataPublishers() {
+		return testDataPublishers;
+	}
+
+	public void setTestDataPublishers(DescribableList<TestDataPublisher, Descriptor<TestDataPublisher>> testDataPublishers) {
+		this.testDataPublishers = testDataPublishers;
 	}
 
 	/**
@@ -106,6 +121,17 @@ public class SuiteGroupResultPublisher extends Recorder implements Serializable,
 		suiteGroupResult.setParentAction(action);
 		suiteGroupResult.freeze(action);
 		suiteGroupResult.tally();
+
+		List<Data> data = new ArrayList<Data>();
+		if(testDataPublishers != null) {
+			for(TestDataPublisher tdp: testDataPublishers) {
+				Data d = tdp.getTestData(build, launcher, listener, suiteGroupResult);
+				if(d != null) {
+					data.add(d);
+				}
+			}
+		}
+		action.setData(data);
 
 		try {
 			final JUnitDB junitDB = new JUnitDB(build.getProject().getRootDir().getAbsolutePath());
@@ -162,6 +188,7 @@ public class SuiteGroupResultPublisher extends Recorder implements Serializable,
 		}
 
 		Result healthResult = determineBuildHealth(build, suiteGroupResult);
+
 		// Parsers can only decide to make the build worse than it currently is, never better.
 		if(healthResult != null && healthResult.isWorseThan(build.getResult())) {
 			build.setResult(healthResult);
@@ -193,6 +220,10 @@ public class SuiteGroupResultPublisher extends Recorder implements Serializable,
 		return new SuiteGroupResultProjectAction(project);
 	}
 
+	public DescriptorExtensionList<TestDataPublisher, Descriptor<TestDataPublisher>> getTestDataPublisherDescriptors() {
+		return TestDataPublisher.all();
+	}
+
 	private static final class ParseResultCallable implements FilePath.FileCallable<SuiteGroupResult> {
 		private static final long serialVersionUID = -2412534164383439939L;
 
@@ -218,7 +249,6 @@ public class SuiteGroupResultPublisher extends Recorder implements Serializable,
 
 			return suiteGroupResult;
 		}
-
 	}
 
 	@Extension
@@ -226,13 +256,25 @@ public class SuiteGroupResultPublisher extends Recorder implements Serializable,
 
 		@Override
 		public String getDisplayName() {
-			return "Publish JUnit tests grouped by suite";
+			return "Publish JUnit test result report grouped by suite";
 		}
 
 		@Override
 		public Publisher newInstance(StaplerRequest req, JSONObject formData) throws hudson.model.Descriptor.FormException {
 			LOGGER.info(formData.toString());
-			return req.bindJSON(SuiteGroupResultPublisher.class, formData);
+			SuiteGroupResultPublisher publisher = req.bindJSON(SuiteGroupResultPublisher.class, formData);
+
+			DescribableList<TestDataPublisher, Descriptor<TestDataPublisher>> testDataPublishers = new DescribableList<TestDataPublisher, Descriptor<TestDataPublisher>>(Saveable.NOOP);
+			try {
+				testDataPublishers.rebuild(req, formData.getJSONObject("config"), TestDataPublisher.all());
+			}
+			catch(IOException e) {
+				throw new FormException(e, null);
+			}
+
+			publisher.setTestDataPublishers(testDataPublishers);
+
+			return publisher;
 		}
 
 		@Override
