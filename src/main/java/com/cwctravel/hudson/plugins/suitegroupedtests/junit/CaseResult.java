@@ -25,24 +25,35 @@ package com.cwctravel.hudson.plugins.suitegroupedtests.junit;
 
 import static java.util.Collections.emptyList;
 import hudson.model.AbstractBuild;
+import hudson.model.AbstractProject;
 import hudson.model.Run;
+import hudson.tasks.junit.SuiteResult;
 import hudson.tasks.junit.TestAction;
 import hudson.tasks.junit.History;
+import hudson.tasks.test.TestObject;
 import hudson.tasks.test.TestResult;
 
-import java.text.DecimalFormat;
-import java.text.ParseException;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.dom4j.Element;
 import org.jvnet.localizer.Localizable;
 import org.kohsuke.stapler.export.Exported;
 
 import com.cwctravel.hudson.plugins.suitegroupedtests.SuiteGroupResultAction;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitDB;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitMetricsInfo;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitSummaryInfo;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitTestDetailInfo;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitTestInfo;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.io.IOUtil;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.io.StringReaderWriter;
 
 /**
  * One test result.
@@ -51,127 +62,32 @@ import com.cwctravel.hudson.plugins.suitegroupedtests.SuiteGroupResultAction;
  */
 public final class CaseResult extends TestResult implements Comparable<CaseResult> {
 	private static final Logger LOGGER = Logger.getLogger(CaseResult.class.getName());
-	private final float duration;
-	/**
-	 * In JUnit, a test is a method of a class. This field holds the fully qualified class name that the test was in.
-	 */
-	private final String className;
-	/**
-	 * This field retains the method name.
-	 */
-	private final String testName;
-	private final boolean skipped;
-	private final String errorStackTrace;
-	private final String errorDetails;
-	private transient SuiteResult parent;
 
-	private transient ClassResult classResult;
+	private int failedSince;
 
-	/**
-	 * Some tools report stdout and stderr at testcase level (such as Maven surefire plugin), others do so at the suite level (such as Ant JUnit
-	 * task.) If these information are reported at the test case level, these fields are set, otherwise null, in which case {@link SuiteResult#stdout}
-	 * .
-	 */
-	private final String stdout, stderr;
+	private final TestObject parent;
 
-	/**
-	 * This test has been failing since this build number (not id.) If {@link #isPassed() passing}, this field is left unused to 0.
-	 */
-	private/*final*/int failedSince;
+	private final JUnitDB junitDB;
 
-	private static float parseTime(Element testCase) {
-		String time = testCase.attributeValue("time");
-		if(time != null) {
-			time = time.replace(",", "");
-			try {
-				return Float.parseFloat(time);
-			}
-			catch(NumberFormatException e) {
-				try {
-					return new DecimalFormat().parse(time).floatValue();
-				}
-				catch(ParseException x) {
-					// hmm, don't know what this format is.
-				}
-			}
-		}
-		return 0.0f;
-	}
+	private final JUnitTestInfo testInfo;
+	private JUnitTestInfo previousTestInfo;
 
-	CaseResult(SuiteResult parent, Element testCase, String testClassName, boolean keepLongStdio) {
-		// schema for JUnit report XML format is not available in Ant,
-		// so I don't know for sure what means what.
-		// reports in http://www.nabble.com/difference-in-junit-publisher-and-ant-junitreport-tf4308604.html#a12265700
-		// indicates that maybe I shouldn't use @classname altogether.
+	private JUnitMetricsInfo metrics;
 
-		// String cn = testCase.attributeValue("classname");
-		// if(cn==null)
-		// // Maven seems to skip classname, and that shows up in testSuite/@name
-		// cn = parent.getName();
-
-		/*
-		    According to http://www.nabble.com/NPE-(Fatal%3A-Null)-in-recording-junit-test-results-td23562964.html
-		    there's some odd-ball cases where testClassName is null but
-		    @name contains fully qualified name.
-		 */
-		String nameAttr = testCase.attributeValue("name");
-		if(testClassName == null && nameAttr.contains(".")) {
-			testClassName = nameAttr.substring(0, nameAttr.lastIndexOf('.'));
-			nameAttr = nameAttr.substring(nameAttr.lastIndexOf('.') + 1);
-		}
-
-		className = testClassName;
-		testName = nameAttr;
-		errorStackTrace = getError(testCase);
-		errorDetails = getErrorMessage(testCase);
+	public CaseResult(TestObject parent, JUnitTestInfo testInfo) {
 		this.parent = parent;
-		duration = parseTime(testCase);
-		skipped = isMarkedAsSkipped(testCase);
-		@SuppressWarnings("LeakingThisInConstructor") Collection<CaseResult> _this = Collections.singleton(this);
-		stdout = possiblyTrimStdio(_this, keepLongStdio, testCase.elementText("system-out"));
-		stderr = possiblyTrimStdio(_this, keepLongStdio, testCase.elementText("system-err"));
-	}
-
-	private static final int HALF_MAX_SIZE = 500;
-
-	static String possiblyTrimStdio(Collection<CaseResult> results, boolean keepLongStdio, String stdio) { // HUDSON-6516
-		if(stdio == null) {
-			return null;
+		this.testInfo = testInfo;
+		try {
+			this.junitDB = new JUnitDB(getOwner().getProject().getRootDir().getAbsolutePath());
 		}
-		if(keepLongStdio) {
-			return stdio;
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
 		}
-		for(CaseResult result: results) {
-			if(result.errorStackTrace != null) {
-				return stdio;
-			}
-		}
-		int len = stdio.length();
-		int middle = len - HALF_MAX_SIZE * 2;
-		if(middle <= 0) {
-			return stdio;
-		}
-		return stdio.substring(0, HALF_MAX_SIZE) + "...[truncated " + middle + " chars]..." + stdio.substring(len - HALF_MAX_SIZE, len);
-	}
-
-	/**
-	 * Used to create a fake failure, when Hudson fails to load data from XML files.
-	 */
-	CaseResult(SuiteResult parent, String testName, String errorStackTrace) {
-		this.className = parent == null ? "unnamed" : parent.getName();
-		this.testName = testName;
-		this.errorStackTrace = errorStackTrace;
-		this.errorDetails = "";
-		this.parent = parent;
-		this.stdout = null;
-		this.stderr = null;
-		this.duration = 0.0f;
-		this.skipped = false;
 	}
 
 	@Override
-	public ClassResult getParent() {
-		return classResult;
+	public TestObject getParent() {
+		return parent;
 	}
 
 	@Override
@@ -184,35 +100,8 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 		return (SuiteGroupResultAction)super.getTestResultAction();
 	}
 
-	private static String getError(Element testCase) {
-		String msg = testCase.elementText("error");
-		if(msg != null)
-			return msg;
-		return testCase.elementText("failure");
-	}
-
-	private static String getErrorMessage(Element testCase) {
-
-		Element msg = testCase.element("error");
-		if(msg == null) {
-			msg = testCase.element("failure");
-		}
-		if(msg == null) {
-			return null; // no error or failure elements! damn!
-		}
-
-		return msg.attributeValue("message");
-	}
-
-	/**
-	 * If the testCase element includes the skipped element (as output by TestNG), then the test has neither passed nor failed, it was never run.
-	 */
-	private static boolean isMarkedAsSkipped(Element testCase) {
-		return testCase.element("skipped") != null;
-	}
-
 	public String getDisplayName() {
-		return testName;
+		return testInfo.getCaseName();
 	}
 
 	/**
@@ -223,7 +112,7 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	@Exported(visibility = 999)
 	public @Override
 	String getName() {
-		return testName;
+		return testInfo.getCaseName();
 	}
 
 	/**
@@ -240,7 +129,7 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	@Override
 	@Exported(visibility = 9)
 	public float getDuration() {
-		return duration;
+		return testInfo.getDuration() / 1000;
 	}
 
 	/**
@@ -248,14 +137,7 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	 */
 	public @Override
 	String getSafeName() {
-		StringBuilder buf = new StringBuilder(testName);
-		for(int i = 0; i < buf.length(); i++) {
-			char ch = buf.charAt(i);
-			if(!Character.isJavaIdentifierPart(ch))
-				buf.setCharAt(i, '_');
-		}
-		Collection<CaseResult> siblings = (classResult == null ? Collections.<CaseResult> emptyList() : classResult.getChildren());
-		return uniquifyName(siblings, buf.toString());
+		return safe(getName());
 	}
 
 	/**
@@ -263,13 +145,14 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	 */
 	@Exported(visibility = 9)
 	public String getClassName() {
-		return className;
+		return parent.getName();
 	}
 
 	/**
 	 * Gets the simple (not qualified) class name.
 	 */
 	public String getSimpleName() {
+		String className = getClassName();
 		int idx = className.lastIndexOf('.');
 		return className.substring(idx + 1);
 	}
@@ -278,6 +161,7 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	 * Gets the package name of a test case
 	 */
 	public String getPackageName() {
+		String className = getClassName();
 		int idx = className.lastIndexOf('.');
 		if(idx < 0)
 			return "(root)";
@@ -286,7 +170,7 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	}
 
 	public String getFullName() {
-		return className + '.' + getName();
+		return getClassName() + '.' + getName();
 	}
 
 	@Override
@@ -318,16 +202,19 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	public int getFailedSince() {
 		// If we haven't calculated failedSince yet, and we should,
 		// do it now.
-		if(failedSince == 0 && getFailCount() == 1) {
-			CaseResult prev = getPreviousResult();
-			if(prev != null && !prev.isPassed())
-				this.failedSince = prev.failedSince;
-			else if(getOwner() != null) {
-				this.failedSince = getOwner().getNumber();
+		if(failedSince == 0 && getFailCount() > 0) {
+			try {
+				List<JUnitSummaryInfo> history = junitDB.summarizeTestCaseHistory(testInfo.getProjectName(), testInfo.getSuiteName(), testInfo.getPackageName(), testInfo.getClassName(), testInfo.getCaseName(), 5000);
+				for(JUnitSummaryInfo junitSummaryInfo: history) {
+					int failedBuildNumber = junitSummaryInfo.getBuildNumber();
+					if(failedBuildNumber < getOwner().getNumber() && junitSummaryInfo.getFailCount() > 0) {
+						failedSince = failedBuildNumber;
+						break;
+					}
+				}
 			}
-			else {
-				LOGGER.warning("trouble calculating getFailedSince. We've got prev, but no owner.");
-				// failedSince will be 0, which isn't correct.
+			catch(SQLException sE) {
+				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
 			}
 		}
 		return failedSince;
@@ -368,12 +255,36 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	@Override
 	@Exported
 	public String getStdout() {
-		if(stdout != null)
-			return stdout;
-		SuiteResult sr = getSuiteResult();
-		if(sr == null)
-			return "";
-		return getSuiteResult().getStdout();
+		StringReaderWriter stdoutReaderWriter = new StringReaderWriter();
+		String result = "";
+		try {
+			JUnitTestDetailInfo junitTestDetailInfo = junitDB.readTestDetail(testInfo.getBuildNumber(), testInfo.getProjectName(), testInfo.getSuiteName(), testInfo.getPackageName(), testInfo.getClassName(), testInfo.getCaseName(), stdoutReaderWriter, null);
+			StringWriter sW = new StringWriter();
+			IOUtil.write(junitTestDetailInfo.getStdout(), sW);
+			result = sW.toString();
+			if(result == null || result.isEmpty()) {
+				junitTestDetailInfo = junitDB.readTestDetail(testInfo.getBuildNumber(), testInfo.getProjectName(), testInfo.getSuiteName(), "<init>", "<init>", "<init>", stdoutReaderWriter, null);
+				sW = new StringWriter();
+				IOUtil.write(junitTestDetailInfo.getStdout(), sW);
+				result = sW.toString();
+			}
+		}
+		catch(SQLException sE) {
+			LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
+		}
+		catch(IOException iE) {
+			LOGGER.log(Level.SEVERE, iE.getMessage(), iE);
+		}
+		finally {
+			try {
+				stdoutReaderWriter.release();
+			}
+			catch(IOException iE) {
+				LOGGER.log(Level.SEVERE, iE.getMessage(), iE);
+			}
+		}
+
+		return result;
 	}
 
 	/**
@@ -385,22 +296,53 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	@Override
 	@Exported
 	public String getStderr() {
-		if(stderr != null)
-			return stderr;
-		SuiteResult sr = getSuiteResult();
-		if(sr == null)
-			return "";
-		return getSuiteResult().getStderr();
+		StringReaderWriter stderrReaderWriter = new StringReaderWriter();
+		String result = "";
+		try {
+			JUnitTestDetailInfo junitTestDetailInfo = junitDB.readTestDetail(testInfo.getBuildNumber(), testInfo.getProjectName(), testInfo.getSuiteName(), testInfo.getPackageName(), testInfo.getClassName(), testInfo.getCaseName(), null, stderrReaderWriter);
+			StringWriter sW = new StringWriter();
+			IOUtil.write(junitTestDetailInfo.getStderr(), sW);
+			result = sW.toString();
+			if(result == null || result.isEmpty()) {
+				junitTestDetailInfo = junitDB.readTestDetail(testInfo.getBuildNumber(), testInfo.getProjectName(), testInfo.getSuiteName(), "<init>", "<init>", "<init>", null, stderrReaderWriter);
+				sW = new StringWriter();
+				IOUtil.write(junitTestDetailInfo.getStderr(), sW);
+				result = sW.toString();
+			}
+		}
+		catch(SQLException sE) {
+			LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
+		}
+		catch(IOException iE) {
+			LOGGER.log(Level.SEVERE, iE.getMessage(), iE);
+		}
+		finally {
+			try {
+				stderrReaderWriter.release();
+			}
+			catch(IOException iE) {
+				LOGGER.log(Level.SEVERE, iE.getMessage(), iE);
+			}
+		}
+
+		return result;
 	}
 
 	@Override
 	public CaseResult getPreviousResult() {
-		if(parent == null)
-			return null;
-		SuiteResult pr = parent.getPreviousResult();
-		if(pr == null)
-			return null;
-		return pr.getCase(getName());
+		return new CaseResult(getParent(), getPreviousTestInfo());
+	}
+
+	public JUnitMetricsInfo getMetrics() {
+		if(metrics == null) {
+			try {
+				metrics = junitDB.fetchTestCaseMetrics(testInfo.getBuildNumber(), testInfo.getProjectName(), testInfo.getSuiteName(), testInfo.getPackageName(), testInfo.getClassName(), testInfo.getCaseName());
+			}
+			catch(SQLException sE) {
+				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
+			}
+		}
+		return metrics;
 	}
 
 	/**
@@ -459,7 +401,18 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	@Override
 	@Exported
 	public String getErrorStackTrace() {
-		return errorStackTrace;
+		String result = null;
+		try {
+			JUnitTestDetailInfo junitTestDetailInfo = junitDB.readTestDetail(testInfo.getBuildNumber(), testInfo.getProjectName(), testInfo.getSuiteName(), testInfo.getPackageName(), testInfo.getClassName(), testInfo.getCaseName(), null, null);
+			result = junitTestDetailInfo.getErrorStackTrace();
+		}
+		catch(SQLException sE) {
+			LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
+		}
+		catch(IOException iE) {
+			LOGGER.log(Level.SEVERE, iE.getMessage(), iE);
+		}
+		return result;
 	}
 
 	/**
@@ -468,7 +421,18 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	@Override
 	@Exported
 	public String getErrorDetails() {
-		return errorDetails;
+		String result = null;
+		try {
+			JUnitTestDetailInfo junitTestDetailInfo = junitDB.readTestDetail(testInfo.getBuildNumber(), testInfo.getProjectName(), testInfo.getSuiteName(), testInfo.getPackageName(), testInfo.getClassName(), testInfo.getCaseName(), null, null);
+			result = junitTestDetailInfo.getErrorMessage();
+		}
+		catch(SQLException sE) {
+			LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
+		}
+		catch(IOException iE) {
+			LOGGER.log(Level.SEVERE, iE.getMessage(), iE);
+		}
+		return result;
 	}
 
 	/**
@@ -476,7 +440,7 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	 */
 	@Override
 	public boolean isPassed() {
-		return !skipped && errorStackTrace == null;
+		return testInfo.getStatus() == JUnitTestInfo.STATUS_SUCCESS;
 	}
 
 	/**
@@ -487,42 +451,12 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	 */
 	@Exported(visibility = 9)
 	public boolean isSkipped() {
-		return skipped;
-	}
-
-	public SuiteResult getSuiteResult() {
-		return parent;
+		return testInfo.getStatus() == JUnitTestInfo.STATUS_SKIP;
 	}
 
 	@Override
 	public AbstractBuild<?, ?> getOwner() {
-		SuiteResult sr = getSuiteResult();
-		if(sr == null) {
-			LOGGER.warning("In getOwner(), getSuiteResult is null");
-			return null;
-		}
-		com.cwctravel.hudson.plugins.suitegroupedtests.junit.TestResult tr = sr.getParent();
-		if(tr == null) {
-			LOGGER.warning("In getOwner(), suiteResult.getParent() is null.");
-			return null;
-		}
-		return tr.getOwner();
-	}
-
-	public void setParentSuiteResult(SuiteResult parent) {
-		this.parent = parent;
-	}
-
-	public void freeze(SuiteResult parent) {
-		this.parent = parent;
-		// some old test data doesn't have failedSince value set, so for those compute them.
-		if(!isPassed() && failedSince == 0) {
-			CaseResult prev = getPreviousResult();
-			if(prev != null && !prev.isPassed())
-				this.failedSince = prev.failedSince;
-			else
-				this.failedSince = getOwner().getNumber();
-		}
+		return(parent == null ? null : parent.getOwner());
 	}
 
 	public int compareTo(CaseResult that) {
@@ -532,15 +466,15 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	@Exported(name = "status", visibility = 9)
 	// because stapler notices suffix 's' and remove it
 	public Status getStatus() {
-		if(skipped) {
+		if(isSkipped()) {
 			return Status.SKIPPED;
 		}
-		CaseResult pr = getPreviousResult();
-		if(pr == null) {
+		JUnitTestInfo junitTestInfo = getPreviousTestInfo();
+		if(junitTestInfo == null) {
 			return isPassed() ? Status.PASSED : Status.FAILED;
 		}
 
-		if(pr.isPassed()) {
+		if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SUCCESS) {
 			return isPassed() ? Status.PASSED : Status.REGRESSION;
 		}
 		else {
@@ -548,8 +482,19 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 		}
 	}
 
-	/*package*/void setClass(ClassResult classResult) {
-		this.classResult = classResult;
+	private JUnitTestInfo getPreviousTestInfo() {
+		if(previousTestInfo == null) {
+			AbstractBuild<?, ?> build = getOwner();
+			AbstractProject<?, ?> project = build.getProject();
+			try {
+				JUnitDB junitDB = new JUnitDB(project.getAbsoluteUrl());
+				previousTestInfo = junitDB.queryTestCaseForBuildPriorTo(testInfo.getProjectName(), testInfo.getBuildNumber(), testInfo.getSuiteName(), testInfo.getPackageName(), testInfo.getClassName(), testInfo.getCaseName());
+			}
+			catch(SQLException sE) {
+				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
+			}
+		}
+		return previousTestInfo;
 	}
 
 	/**

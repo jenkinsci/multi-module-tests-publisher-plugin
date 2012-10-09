@@ -25,20 +25,19 @@ package com.cwctravel.hudson.plugins.suitegroupedtests.junit;
 
 import hudson.model.AbstractBuild;
 import hudson.model.Run;
+import hudson.tasks.junit.SuiteResult;
 import hudson.tasks.junit.TestAction;
 import hudson.tasks.junit.History;
-import hudson.tasks.test.AbstractTestResultAction;
 import hudson.tasks.test.MetaTabulatedResult;
 import hudson.tasks.test.TestObject;
 
-import java.io.File;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.kohsuke.stapler.StaplerRequest;
@@ -46,6 +45,13 @@ import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.export.Exported;
 
 import com.cwctravel.hudson.plugins.suitegroupedtests.SuiteGroupResultAction;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitDB;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitMetricsInfo;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitSummaryInfo;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitTestDetailInfo;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitTestInfo;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.io.IOUtil;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.io.StringReaderWriter;
 
 /**
  * Root of all the test results for one build.
@@ -54,62 +60,31 @@ import com.cwctravel.hudson.plugins.suitegroupedtests.SuiteGroupResultAction;
  */
 public final class TestResult extends MetaTabulatedResult {
 	private static final Logger LOGGER = Logger.getLogger(TestResult.class.getName());
+	private static final long serialVersionUID = 1L;
 
-	/**
-	 * List of all {@link SuiteResult}s in this test. This is the core data structure to be persisted in the disk.
-	 */
-	private final List<SuiteResult> suites = new ArrayList<SuiteResult>();
+	private int failedSince;
 
-	/**
-	 * {@link #suites} keyed by their names for faster lookup.
-	 */
-	private transient Map<String, SuiteResult> suitesByName;
+	private TestObject parent;
 
-	/**
-	 * Results tabulated by package.
-	 */
-	private transient Map<String, PackageResult> byPackages;
+	private final JUnitDB junitDB;
 
-	// set during the freeze phase
-	private transient AbstractTestResultAction<?> parentAction;
+	private final JUnitSummaryInfo summary;
+	private JUnitSummaryInfo previousSummary;
 
-	private transient TestObject parent;
-
-	/**
-	 * Number of all tests.
-	 */
-	private transient int totalTests;
-
-	private transient int skippedTests;
-
-	private float duration;
-
-	/**
-	 * Number of failed/error tests.
-	 */
-	private transient List<CaseResult> failedTests;
-
-	private String suiteName;
+	private JUnitMetricsInfo metrics;
 
 	/**
 	 * Creates an empty result.
 	 */
-	public TestResult() {}
 
-	public TestResult(TestObject parent, String suiteName, SuiteResult suiteResult) {
+	public TestResult(TestObject parent, JUnitSummaryInfo junitSummaryInfo) {
 		this.parent = parent;
-		this.suiteName = suiteName;
-		add(suiteResult);
-	}
-
-	public TestResult(TestObject parent, String suiteName, List<SuiteResult> suiteResults) {
-		this.parent = parent;
-		this.suiteName = suiteName;
-
-		if(suiteResults != null) {
-			for(SuiteResult suiteResult: suiteResults) {
-				add(suiteResult);
-			}
+		this.summary = junitSummaryInfo;
+		try {
+			this.junitDB = new JUnitDB(getOwner().getProject().getRootDir().getAbsolutePath());
+		}
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
 		}
 	}
 
@@ -123,28 +98,13 @@ public final class TestResult extends MetaTabulatedResult {
 		this.parent = parent;
 	}
 
-	private void add(SuiteResult sr) {
-		for(SuiteResult s: suites) {
-			// a common problem is that people parse TEST-*.xml as well as TESTS-TestSuite.xml
-			// see http://www.nabble.com/Problem-with-duplicate-build-execution-td17549182.html for discussion
-			if(s.getName().equals(sr.getName()) && eq(s.getTimestamp(), sr.getTimestamp()))
-				return; // duplicate
-		}
-		suites.add(sr);
-		duration += sr.getDuration();
-	}
-
-	private boolean eq(Object lhs, Object rhs) {
-		return lhs != null && rhs != null && lhs.equals(rhs);
-	}
-
 	public String getDisplayName() {
-		return suiteName;
+		return summary.getSuiteName();
 	}
 
 	@Override
 	public AbstractBuild<?, ?> getOwner() {
-		return(parentAction == null ? null : parentAction.owner);
+		return(parent == null ? null : parent.getOwner());
 	}
 
 	@Override
@@ -216,61 +176,112 @@ public final class TestResult extends MetaTabulatedResult {
 	@Exported(visibility = 999)
 	@Override
 	public float getDuration() {
-		return duration;
+		return summary.getDuration() / 1000;
 	}
 
 	@Exported(visibility = 999)
 	@Override
 	public int getPassCount() {
-		return totalTests - getFailCount() - getSkipCount();
+		return (int)summary.getPassCount();
 	}
 
 	@Exported(visibility = 999)
 	@Override
 	public int getFailCount() {
-		if(failedTests == null)
-			return 0;
-		else
-			return failedTests.size();
+		return (int)summary.getFailCount();
 	}
 
 	@Exported(visibility = 999)
 	@Override
 	public int getSkipCount() {
-		return skippedTests;
+		return (int)summary.getSkipCount();
 	}
 
 	public int getPassDiff() {
-		TestResult prev = (TestResult)getPreviousResult();
-		if(prev == null)
+		JUnitSummaryInfo junitSummaryInfo = getPreviousSummary();
+
+		if(junitSummaryInfo != null) {
+			return getPassCount() - (int)junitSummaryInfo.getPassCount();
+		}
+		else {
 			return getPassCount();
-		return getPassCount() - prev.getPassCount();
+		}
 	}
 
 	public int getSkipDiff() {
-		TestResult prev = (TestResult)getPreviousResult();
-		if(prev == null)
+		JUnitSummaryInfo junitSummaryInfo = getPreviousSummary();
+
+		if(junitSummaryInfo != null) {
+			return getSkipCount() - (int)junitSummaryInfo.getSkipCount();
+		}
+		else {
 			return getSkipCount();
-		return getSkipCount() - prev.getSkipCount();
+		}
 	}
 
 	public int getFailDiff() {
-		TestResult prev = (TestResult)getPreviousResult();
-		if(prev == null)
+		JUnitSummaryInfo junitSummaryInfo = getPreviousSummary();
+
+		if(junitSummaryInfo != null) {
+			return getFailCount() - (int)junitSummaryInfo.getFailCount();
+		}
+		else {
 			return getFailCount();
-		return getFailCount() - prev.getFailCount();
+		}
 	}
 
 	public int getTotalDiff() {
-		TestResult prev = (TestResult)getPreviousResult();
-		if(prev == null)
+		JUnitSummaryInfo junitSummaryInfo = getPreviousSummary();
+		if(junitSummaryInfo != null) {
+			return getTotalCount() - (int)junitSummaryInfo.getTotalCount();
+		}
+		else {
 			return getTotalCount();
-		return getTotalCount() - prev.getTotalCount();
+		}
+	}
+
+	public JUnitMetricsInfo getMetrics() {
+		if(metrics == null) {
+			try {
+				metrics = junitDB.fetchTestSuiteMetrics(summary.getBuildNumber(), summary.getProjectName(), summary.getSuiteName());
+			}
+			catch(SQLException sE) {
+				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
+			}
+		}
+		return metrics;
+	}
+
+	private JUnitSummaryInfo getPreviousSummary() {
+		JUnitSummaryInfo junitSummaryInfo = previousSummary;
+		if(junitSummaryInfo == null) {
+			try {
+				junitSummaryInfo = junitDB.summarizeTestSuiteForBuildPriorTo(summary.getBuildNumber(), summary.getProjectName(), parent.getName());
+			}
+			catch(SQLException sE) {
+				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
+			}
+			previousSummary = junitSummaryInfo;
+		}
+		return junitSummaryInfo;
 	}
 
 	@Override
 	public List<CaseResult> getFailedTests() {
-		return failedTests;
+		try {
+			List<CaseResult> result = new ArrayList<CaseResult>();
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsBySuite(summary.getProjectName(), summary.getBuildId(), summary.getSuiteName());
+			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
+				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_FAIL || junitTestInfo.getStatus() == JUnitTestInfo.STATUS_ERROR) {
+					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					result.add(caseResult);
+				}
+			}
+			return result;
+		}
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
 	}
 
 	/**
@@ -280,7 +291,20 @@ public final class TestResult extends MetaTabulatedResult {
 	 */
 	@Override
 	public Collection<? extends hudson.tasks.test.TestResult> getPassedTests() {
-		throw new UnsupportedOperationException(); // TODO: implement!(FIXME: generated)
+		try {
+			List<CaseResult> result = new ArrayList<CaseResult>();
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsBySuite(summary.getProjectName(), summary.getBuildId(), summary.getSuiteName());
+			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
+				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SUCCESS) {
+					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					result.add(caseResult);
+				}
+			}
+			return result;
+		}
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
 	}
 
 	/**
@@ -290,23 +314,45 @@ public final class TestResult extends MetaTabulatedResult {
 	 */
 	@Override
 	public Collection<? extends hudson.tasks.test.TestResult> getSkippedTests() {
-		throw new UnsupportedOperationException(); // TODO: implement!(FIXME: generated)
+		try {
+			List<CaseResult> result = new ArrayList<CaseResult>();
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsBySuite(summary.getProjectName(), summary.getBuildId(), summary.getSuiteName());
+			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
+				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SKIP) {
+					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					result.add(caseResult);
+				}
+			}
+			return result;
+		}
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
 	}
 
-	/**
-	 * If this test failed, then return the build number when this test started failing.
-	 */
 	@Override
-	public int getFailedSince() {
-		throw new UnsupportedOperationException(); // TODO: implement!(FIXME: generated)
+	public int getFailedSince() { // TODO: implement this.
+		if(failedSince == 0 && getFailCount() > 0) {
+			try {
+				List<JUnitSummaryInfo> history = junitDB.summarizeTestSuiteHistory(summary.getProjectName(), summary.getSuiteName(), 5000);
+				for(JUnitSummaryInfo junitSummaryInfo: history) {
+					int failedBuildNumber = junitSummaryInfo.getBuildNumber();
+					if(failedBuildNumber < getOwner().getNumber() && junitSummaryInfo.getFailCount() > 0) {
+						failedSince = failedBuildNumber;
+						break;
+					}
+				}
+			}
+			catch(SQLException sE) {
+				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
+			}
+		}
+		return failedSince;
 	}
 
-	/**
-	 * If this test failed, then return the run when this test started failing.
-	 */
 	@Override
-	public Run<?, ?> getFailedSinceRun() {
-		throw new UnsupportedOperationException(); // TODO: implement!(FIXME: generated)
+	public Run<?, ?> getFailedSinceRun() { // TODO: implement this.
+		return getOwner().getParent().getBuildByNumber(getFailedSince());
 	}
 
 	/**
@@ -324,12 +370,30 @@ public final class TestResult extends MetaTabulatedResult {
 	 */
 	@Override
 	public String getStdout() {
-		StringBuilder sb = new StringBuilder();
-		for(SuiteResult suite: suites) {
-			sb.append("Standard Out (stdout) for Suite: " + suite.getName());
-			sb.append(suite.getStdout());
+		StringReaderWriter stdoutReaderWriter = new StringReaderWriter();
+		String result = "";
+		try {
+			JUnitTestDetailInfo junitTestDetailInfo = junitDB.readTestDetail(summary.getBuildNumber(), summary.getProjectName(), summary.getSuiteName(), "<init>", "<init>", "<init>", stdoutReaderWriter, null);
+			StringWriter sW = new StringWriter();
+			IOUtil.write(junitTestDetailInfo.getStdout(), sW);
+			result = sW.toString();
 		}
-		return sb.toString();
+		catch(SQLException sE) {
+			LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
+		}
+		catch(IOException iE) {
+			LOGGER.log(Level.SEVERE, iE.getMessage(), iE);
+		}
+		finally {
+			try {
+				stdoutReaderWriter.release();
+			}
+			catch(IOException iE) {
+				LOGGER.log(Level.SEVERE, iE.getMessage(), iE);
+			}
+		}
+
+		return result;
 	}
 
 	/**
@@ -340,12 +404,31 @@ public final class TestResult extends MetaTabulatedResult {
 	 */
 	@Override
 	public String getStderr() {
-		StringBuilder sb = new StringBuilder();
-		for(SuiteResult suite: suites) {
-			sb.append("Standard Error (stderr) for Suite: " + suite.getName());
-			sb.append(suite.getStderr());
+		StringReaderWriter stderrReaderWriter = new StringReaderWriter();
+		String result = "";
+		try {
+			JUnitTestDetailInfo junitTestDetailInfo = junitDB.readTestDetail(summary.getBuildNumber(), summary.getProjectName(), summary.getSuiteName(), "<init>", "<init>", "<init>", null, stderrReaderWriter);
+			StringWriter sW = new StringWriter();
+			IOUtil.write(junitTestDetailInfo.getStderr(), sW);
+			result = sW.toString();
+
 		}
-		return sb.toString();
+		catch(SQLException sE) {
+			LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
+		}
+		catch(IOException iE) {
+			LOGGER.log(Level.SEVERE, iE.getMessage(), iE);
+		}
+		finally {
+			try {
+				stderrReaderWriter.release();
+			}
+			catch(IOException iE) {
+				LOGGER.log(Level.SEVERE, iE.getMessage(), iE);
+			}
+		}
+
+		return result;
 	}
 
 	/**
@@ -374,7 +457,19 @@ public final class TestResult extends MetaTabulatedResult {
 
 	@Override
 	public Collection<PackageResult> getChildren() {
-		return byPackages.values();
+		try {
+			List<PackageResult> result = new ArrayList<PackageResult>();
+			List<JUnitSummaryInfo> junitSummaryInfoList = junitDB.fetchTestSuiteChildrenForBuild(summary.getBuildNumber(), summary.getProjectName(), summary.getSuiteName());
+			for(JUnitSummaryInfo summaryInfo: junitSummaryInfoList) {
+				PackageResult packageResult = new PackageResult(this, summaryInfo);
+				result.add(packageResult);
+			}
+
+			return result;
+		}
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
 	}
 
 	/**
@@ -382,17 +477,12 @@ public final class TestResult extends MetaTabulatedResult {
 	 */
 	@Override
 	public boolean hasChildren() {
-		return !suites.isEmpty();
-	}
-
-	@Exported(inline = true, visibility = 9)
-	public Collection<SuiteResult> getSuites() {
-		return suites;
+		return summary.getTotalCount() == 0;
 	}
 
 	@Override
 	public String getName() {
-		return suiteName;
+		return summary.getSuiteName();
 	}
 
 	@Override
@@ -411,104 +501,17 @@ public final class TestResult extends MetaTabulatedResult {
 	}
 
 	public PackageResult byPackage(String packageName) {
-		return byPackages.get(packageName);
-	}
-
-	public SuiteResult getSuite(String name) {
-		return suitesByName.get(name);
-	}
-
-	@Override
-	public void setParentAction(AbstractTestResultAction action) {
-		this.parentAction = action;
-		tally(); // I want to be sure to inform our children when we get an action.
-	}
-
-	@Override
-	public AbstractTestResultAction getParentAction() {
-		return this.parentAction;
-	}
-
-	/**
-	 * Recount my children.
-	 */
-	@Override
-	public void tally() {
-		// / Empty out data structures
-		// TODO: free children? memmory leak?
-		suitesByName = new HashMap<String, SuiteResult>();
-		failedTests = new ArrayList<CaseResult>();
-		byPackages = new TreeMap<String, PackageResult>();
-
-		totalTests = 0;
-		skippedTests = 0;
-
-		// Ask all of our children to tally themselves
-		for(SuiteResult s: suites) {
-			s.setParent(this); // kluge to prevent double-counting the results
-			suitesByName.put(s.getName(), s);
-			List<CaseResult> cases = s.getCases();
-
-			for(CaseResult cr: cases) {
-				cr.setParentAction(this.parentAction);
-				cr.setParentSuiteResult(s);
-				cr.tally();
-				String pkg = cr.getPackageName(), spkg = safe(pkg);
-				PackageResult pr = byPackage(spkg);
-				if(pr == null)
-					byPackages.put(spkg, pr = new PackageResult(this, pkg));
-				pr.add(cr);
+		try {
+			PackageResult result = null;
+			JUnitSummaryInfo junitSummaryInfo = junitDB.summarizeTestPackageForBuild(summary.getBuildNumber(), summary.getProjectName(), summary.getSuiteName(), packageName);
+			if(junitSummaryInfo != null) {
+				result = new PackageResult(this, junitSummaryInfo);
 			}
+			return result;
 		}
-
-		for(PackageResult pr: byPackages.values()) {
-			pr.tally();
-			skippedTests += pr.getSkipCount();
-			failedTests.addAll(pr.getFailedTests());
-			totalTests += pr.getTotalCount();
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
 		}
-	}
-
-	/**
-	 * Builds up the transient part of the data structure from results {@link #parse(File) parsed} so far.
-	 * <p>
-	 * After the data is frozen, more files can be parsed and then freeze can be called again.
-	 */
-	public void freeze(SuiteGroupResultAction parent) {
-		this.parentAction = parent;
-		if(suitesByName == null) {
-			// freeze for the first time
-			suitesByName = new HashMap<String, SuiteResult>();
-			totalTests = 0;
-			failedTests = new ArrayList<CaseResult>();
-			byPackages = new TreeMap<String, PackageResult>();
-		}
-
-		for(SuiteResult s: suites) {
-			if(!s.freeze(this)) // this is disturbing: has-a-parent is conflated with has-been-counted
-				continue;
-
-			suitesByName.put(s.getName(), s);
-
-			totalTests += s.getCases().size();
-			for(CaseResult cr: s.getCases()) {
-				if(cr.isSkipped())
-					skippedTests++;
-				else if(!cr.isPassed())
-					failedTests.add(cr);
-
-				String pkg = cr.getPackageName(), spkg = safe(pkg);
-				PackageResult pr = byPackage(spkg);
-				if(pr == null)
-					byPackages.put(spkg, pr = new PackageResult(this, pkg));
-				pr.add(cr);
-			}
-		}
-
-		Collections.sort(failedTests, CaseResult.BY_AGE);
-
-		for(PackageResult pr: byPackages.values())
-			pr.freeze();
 	}
 
 	public String getRootUrl(String urlName) {
@@ -530,5 +533,4 @@ public final class TestResult extends MetaTabulatedResult {
 		return new com.cwctravel.hudson.plugins.suitegroupedtests.junit.History(this, 5000);
 	}
 
-	private static final long serialVersionUID = 1L;
 }

@@ -26,19 +26,18 @@ THE SOFTWARE.
         <st:include page="sidepanel.jelly" />
         <l:main-panel>
             <h1>${it.title}</h1>
-
-            <j:scope> <!-- the variable 'prev' should only be available within this tag's body -->                
-                <j:set var="prev" value="${it.previousResult}" />
-                <h2>Overall Results</h2>
-                <test:bar />
-
-                <t:editableDescription permission="${it.owner.BUILD}"/>
-
-                <table style="margin-top: 1em; margin-left:0em;">
-                    <j:forEach var="action" items="${it.testActions}">
-                        <st:include page="summary.jelly" from="${action}" optional="true" it="${action}" />
-                    </j:forEach>
-                </table>
+			<j:scope>
+		        <j:set var="prev" value="${it.previousResult}" />
+	            <h2>Overall Results</h2>
+	            <test:bar />
+	
+	            <t:editableDescription permission="${it.owner.BUILD}"/>
+	
+	            <table style="margin-top: 1em; margin-left:0em;">
+	                <j:forEach var="action" items="${it.testActions}">
+	                    <st:include page="summary.jelly" from="${action}" optional="true" it="${action}" />
+	                </j:forEach>
+	            </table>
             </j:scope>
             <st:include page="body.jelly" />
         </l:main-panel>

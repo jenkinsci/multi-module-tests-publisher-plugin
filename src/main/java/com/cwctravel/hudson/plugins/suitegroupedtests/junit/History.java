@@ -38,6 +38,7 @@ import hudson.util.StackedAreaRenderer2;
 import java.awt.Color;
 import java.awt.Paint;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -103,6 +104,10 @@ public class History extends hudson.tasks.junit.History {
 				String packageName = caseResult.getParent().getParent().getName();
 				String suiteName = caseResult.getParent().getParent().getParent().getName();
 				historyItems = junitDB.summarizeTestCaseHistory(projectName, suiteName, packageName, className, caseName, limit);
+			}
+
+			if(historyItems != null) {
+				Collections.reverse(historyItems);
 			}
 		}
 		catch(SQLException sE) {

@@ -30,8 +30,9 @@ import java.io.Serializable;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.xml.parsers.ParserConfigurationException;
 
 import net.sf.json.JSONObject;
 
@@ -39,15 +40,12 @@ import org.apache.tools.ant.DirectoryScanner;
 import org.apache.tools.ant.types.FileSet;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
+import org.xml.sax.SAXException;
 
 import com.cwctravel.hudson.plugins.suitegroupedtests.SuiteGroupResultAction.Data;
-import com.cwctravel.hudson.plugins.suitegroupedtests.junit.CaseResult;
-import com.cwctravel.hudson.plugins.suitegroupedtests.junit.ClassResult;
-import com.cwctravel.hudson.plugins.suitegroupedtests.junit.PackageResult;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.JUnitParser;
 import com.cwctravel.hudson.plugins.suitegroupedtests.junit.SuiteGroupResult;
-import com.cwctravel.hudson.plugins.suitegroupedtests.junit.TestResult;
 import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitDB;
-import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitTestInfo;
 
 public class SuiteGroupResultPublisher extends Recorder implements Serializable, MatrixAggregatable {
 	/**
@@ -114,13 +112,12 @@ public class SuiteGroupResultPublisher extends Recorder implements Serializable,
 		final long buildTime = build.getTimestamp().getTimeInMillis();
 		final long nowMaster = System.currentTimeMillis();
 
-		SuiteGroupResult suiteGroupResult = build.getWorkspace().act(new ParseResultCallable(config.getTestResultFileMask(), buildTime, nowMaster, config.isKeepLongStdio()));
+		File junitDBDir = build.getProject().getRootDir();
+		build.getWorkspace().act(new ParseResultCallable(junitDBDir, build.getId(), build.getNumber(), build.getProject().getName(), config.getTestResultFileMask(), buildTime, nowMaster, config.isKeepLongStdio()));
 
+		SuiteGroupResult suiteGroupResult = new SuiteGroupResult(build, "(no description)");
 		SuiteGroupResultAction action = new SuiteGroupResultAction(build, suiteGroupResult, listener);
 		build.addAction(action);
-		suiteGroupResult.setParentAction(action);
-		suiteGroupResult.freeze(action);
-		suiteGroupResult.tally();
 
 		List<Data> data = new ArrayList<Data>();
 		if(testDataPublishers != null) {
@@ -132,60 +129,6 @@ public class SuiteGroupResultPublisher extends Recorder implements Serializable,
 			}
 		}
 		action.setData(data);
-
-		try {
-			final JUnitDB junitDB = new JUnitDB(build.getProject().getRootDir().getAbsolutePath());
-			List<TestResult> testResults = new ArrayList<TestResult>(suiteGroupResult.getChildren());
-
-			List<JUnitTestInfo> junitTests = new ArrayList<JUnitTestInfo>();
-
-			for(TestResult testResult: testResults) {
-				List<PackageResult> packageResults = new ArrayList<PackageResult>(testResult.getChildren());
-				for(PackageResult packageResult: packageResults) {
-					List<ClassResult> classResults = new ArrayList<ClassResult>(packageResult.getChildren());
-					for(ClassResult classResult: classResults) {
-						List<CaseResult> caseResults = new ArrayList<CaseResult>(classResult.getChildren());
-						for(CaseResult caseResult: caseResults) {
-							JUnitTestInfo junitTestInfo = new JUnitTestInfo();
-							junitTestInfo.setBuildId(build.getId());
-							junitTestInfo.setBuildNumber(build.getNumber());
-							junitTestInfo.setProjectName(build.getProject().getName());
-							junitTestInfo.setSuiteName(testResult.getName());
-							junitTestInfo.setStartTime(build.getTimeInMillis());
-							junitTestInfo.setPackageName(packageResult.getName());
-							junitTestInfo.setClassName(classResult.getName());
-							junitTestInfo.setCaseName(caseResult.getName());
-							junitTestInfo.setDuration((long)(caseResult.getDuration() * 1000));
-
-							CaseResult.Status caseStatus = caseResult.getStatus();
-							if(caseStatus == CaseResult.Status.PASSED) {
-								junitTestInfo.setStatus(JUnitTestInfo.STATUS_SUCCESS);
-							}
-							else if(caseStatus == CaseResult.Status.FAILED || caseStatus == CaseResult.Status.REGRESSION) {
-								junitTestInfo.setStatus(JUnitTestInfo.STATUS_FAIL);
-							}
-							else if(caseStatus == CaseResult.Status.SKIPPED) {
-								junitTestInfo.setStatus(JUnitTestInfo.STATUS_SKIP);
-							}
-							junitTests.add(junitTestInfo);
-							if(junitTests.size() > 1000) {
-								junitDB.insertTests(junitTests);
-								junitTests.clear();
-							}
-						}
-
-					}
-				}
-
-			}
-
-			if(junitTests.size() > 0) {
-				junitDB.insertTests(junitTests);
-			}
-		}
-		catch(SQLException e) {
-			LOGGER.log(Level.SEVERE, "Could not persist results to database: " + e.getMessage(), e);
-		}
 
 		Result healthResult = determineBuildHealth(build, suiteGroupResult);
 
@@ -224,30 +167,68 @@ public class SuiteGroupResultPublisher extends Recorder implements Serializable,
 		return TestDataPublisher.all();
 	}
 
-	private static final class ParseResultCallable implements FilePath.FileCallable<SuiteGroupResult> {
+	private static final class ParseResultCallable implements FilePath.FileCallable<Void> {
 		private static final long serialVersionUID = -2412534164383439939L;
+		private static final boolean checkTimestamps = false; // TODO: change to System.getProperty
 
-		private final long buildTime;
-		private final String testResults;
-		private final long nowMaster;
 		private final boolean keepLongStdio;
 
-		private ParseResultCallable(String testResults, long buildTime, long nowMaster, boolean keepLongStdio) {
+		private final int buildNumber;
+
+		private final long buildTime;
+		private final long nowMaster;
+
+		private final String buildId;
+		private final String projectName;
+		private final String testResults;
+
+		private final File junitDBDir;
+
+		private ParseResultCallable(File junitDBDir, String buildId, int buildNumber, String projectName, String testResults, long buildTime,
+				long nowMaster, boolean keepLongStdio) {
+			this.buildId = buildId;
+			this.buildNumber = buildNumber;
+			this.projectName = projectName;
 			this.buildTime = buildTime;
 			this.testResults = testResults;
 			this.nowMaster = nowMaster;
+
 			this.keepLongStdio = keepLongStdio;
+
+			this.junitDBDir = junitDBDir;
 		}
 
-		public SuiteGroupResult invoke(File ws, VirtualChannel channel) throws IOException, InterruptedException {
+		public Void invoke(File ws, VirtualChannel channel) throws IOException, InterruptedException {
 			final long nowSlave = System.currentTimeMillis();
 
 			FileSet fs = Util.createFileSet(ws, testResults);
 			DirectoryScanner ds = fs.getDirectoryScanner();
+			String[] includedFiles = ds.getIncludedFiles();
+			File baseDir = ds.getBasedir();
 
-			SuiteGroupResult suiteGroupResult = new SuiteGroupResult("(no description)", buildTime + (nowSlave - nowMaster), ds, keepLongStdio);
+			try {
+				JUnitParser junitParser = new JUnitParser(new JUnitDB(junitDBDir.getAbsolutePath()));
+				for(String value: includedFiles) {
+					File reportFile = new File(baseDir, value);
+					// only count files that were actually updated during this build
+					if((buildTime + (nowSlave - nowMaster) - 3000/*error margin*/<= reportFile.lastModified()) || !checkTimestamps) {
+						if(reportFile.length() != 0) {
+							junitParser.parse(buildNumber, buildId, projectName, reportFile);
+						}
+					}
+				}
+			}
+			catch(SAXException sAE) {
+				throw new IOException(sAE);
+			}
+			catch(ParserConfigurationException pCE) {
+				throw new IOException(pCE);
+			}
+			catch(SQLException sE) {
+				throw new IOException(sE);
+			}
 
-			return suiteGroupResult;
+			return null;
 		}
 	}
 

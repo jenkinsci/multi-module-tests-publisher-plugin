@@ -27,9 +27,7 @@ THE SOFTWARE.
     <st:include page="sidepanel.jelly" />
     <l:main-panel>
       <h1><st:out value="${it.title}" /></h1>
-
-      <j:set var="prev" value="${it.previousResult}" />
-
+	  <j:set var="prev" value="${it.previousResult}" />
       <test:bar />
 
       <div style="text-align:right;">

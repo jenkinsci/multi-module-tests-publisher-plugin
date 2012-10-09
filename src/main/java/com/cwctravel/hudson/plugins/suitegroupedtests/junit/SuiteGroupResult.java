@@ -1,119 +1,70 @@
 package com.cwctravel.hudson.plugins.suitegroupedtests.junit;
 
-import hudson.AbortException;
-import hudson.Util;
 import hudson.model.AbstractBuild;
+import hudson.model.AbstractProject;
 import hudson.model.Run;
 import hudson.tasks.junit.TestAction;
 import hudson.tasks.junit.History;
 import hudson.tasks.test.AbstractTestResultAction;
 import hudson.tasks.test.MetaTabulatedResult;
 import hudson.tasks.test.TestObject;
-import hudson.util.IOException2;
 
-import java.io.File;
-import java.io.IOException;
+import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.tools.ant.DirectoryScanner;
-import org.dom4j.DocumentException;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.export.Exported;
 
 import com.cwctravel.hudson.plugins.suitegroupedtests.SuiteGroupResultAction;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitDB;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitMetricsInfo;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitSummaryInfo;
 
 public class SuiteGroupResult extends MetaTabulatedResult {
 	private static final long serialVersionUID = -6091389434656908226L;
 
-	private static final boolean checkTimestamps = true; // TODO: change to System.getProperty
+	private static final Logger LOGGER = Logger.getLogger(SuiteGroupResult.class.getName());
 
-	private static final List<TestAction> EMPTY_TEST_ACTIONS_LIST = new ArrayList<TestAction>();
+	private int failedSince;
 
-	protected final Map<String, TestResult> childrenBySuiteName;
+	private String description = "";
 
-	protected transient Map<String, Collection<TestResult>> failedTestsBySuiteName;
-	protected transient Map<String, Collection<TestResult>> passedTestsBySuiteName;
-	protected transient Map<String, Collection<TestResult>> skippedTestsBySuiteName;
-	protected transient Collection<TestResult> allFailedTests;
-	protected transient Collection<TestResult> allPassedTests;
-	protected transient Collection<TestResult> allSkippedTests;
+	private SuiteGroupResultAction parentAction;
 
-	protected final boolean keepLongStdio;
+	private JUnitDB junitDB;
 
-	protected int failCount = 0;
-	protected int skipCount = 0;
-	protected int passCount = 0;
-	protected int totalCount = 0;
+	private JUnitSummaryInfo summary;
+	private JUnitSummaryInfo previousSummary;
 
-	protected float duration = 0;
-
-	protected transient boolean cacheDirty = true;
-	protected transient SuiteGroupResultAction parentAction = null;
-
-	protected String description = "";
+	private JUnitMetricsInfo metrics;
 
 	/** Effectively overrides TestObject.id, by overriding the accessors */
 	protected String groupId = "";
-
-	private static final Logger LOGGER = Logger.getLogger(SuiteGroupResult.class.getName());
 
 	/**
 	 * Allow the object to rebuild its internal data structures when it is deserialized.
 	 */
 	private Object readResolve() {
-		failedTestsBySuiteName = new HashMap<String, Collection<TestResult>>(10);
-		passedTestsBySuiteName = new HashMap<String, Collection<TestResult>>(10);
-		skippedTestsBySuiteName = new HashMap<String, Collection<TestResult>>(10);
-		allPassedTests = new HashSet<TestResult>();
-		allFailedTests = new HashSet<TestResult>();
-		allSkippedTests = new HashSet<TestResult>();
-		updateCache();
 		return this;
 	}
 
-	public SuiteGroupResult() {
-		childrenBySuiteName = new HashMap<String, TestResult>(10);
-		failedTestsBySuiteName = new HashMap<String, Collection<TestResult>>(10);
-		passedTestsBySuiteName = new HashMap<String, Collection<TestResult>>(10);
-		skippedTestsBySuiteName = new HashMap<String, Collection<TestResult>>(10);
-		allPassedTests = new HashSet<TestResult>();
-		allFailedTests = new HashSet<TestResult>();
-		allSkippedTests = new HashSet<TestResult>();
-		this.keepLongStdio = false;
-		cacheDirty = true;
-	}
+	public SuiteGroupResult() {}
 
-	public SuiteGroupResult(String description, long buildTime, DirectoryScanner ds, boolean keepLongStdio) throws IOException {
-		childrenBySuiteName = new HashMap<String, TestResult>(10);
-		failedTestsBySuiteName = new HashMap<String, Collection<TestResult>>(10);
-		passedTestsBySuiteName = new HashMap<String, Collection<TestResult>>(10);
-		skippedTestsBySuiteName = new HashMap<String, Collection<TestResult>>(10);
-		allPassedTests = new HashSet<TestResult>();
-		allFailedTests = new HashSet<TestResult>();
-		allSkippedTests = new HashSet<TestResult>();
-
+	public SuiteGroupResult(AbstractBuild<?, ?> build, String description) {
 		this.description = description;
-		this.keepLongStdio = keepLongStdio;
-
-		if(ds != null) {
-			parse(buildTime, ds);
+		try {
+			AbstractProject<?, ?> project = build.getProject();
+			this.junitDB = new JUnitDB(project.getRootDir().getAbsolutePath());
+			this.summary = junitDB.summarizeTestProjectForBuild(build.getNumber(), project.getName());
 		}
-
-		cacheDirty = true;
-	}
-
-	@Override
-	public void tally() {
-		updateCache();
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
 	}
 
 	/**
@@ -122,24 +73,31 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 	 * @return
 	 */
 	public Collection<String> getSuiteNames() {
-		if(cacheDirty)
-			updateCache();
-		return childrenBySuiteName.keySet();
+		List<String> result = new ArrayList<String>();
+		Collection<TestResult> children = getChildren();
+		for(TestResult child: children) {
+			result.add(child.getName());
+		}
+		return result;
 	}
 
 	@Exported(inline = true, visibility = 99)
 	public Collection<TestResult> getGroups() {
-		if(cacheDirty)
-			updateCache();
-		return childrenBySuiteName.values();
+		return getChildren();
 	}
 
 	public TestResult getGroupBySuiteName(String suiteName) {
-		if(cacheDirty)
-			updateCache();
-
-		TestResult group = childrenBySuiteName.get(suiteName);
-		return group;
+		TestResult result = null;
+		try {
+			JUnitSummaryInfo junitSummaryInfo = junitDB.summarizeTestSuiteForBuild(summary.getBuildNumber(), summary.getProjectName(), suiteName);
+			if(junitSummaryInfo != null) {
+				result = new TestResult(this, junitSummaryInfo);
+			}
+		}
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
+		return result;
 	}
 
 	@Override
@@ -156,20 +114,9 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 	}
 
 	public void setParentAction(SuiteGroupResultAction parentAction) {
-		if(this.parentAction == parentAction) {
-			return;
+		if(this.parentAction != parentAction) {
+			this.parentAction = parentAction;
 		}
-
-		this.parentAction = parentAction;
-		// Tell all of our children about the parent action, too.
-		for(TestResult group: childrenBySuiteName.values()) {
-			group.setParentAction(parentAction);
-		}
-	}
-
-	public void addTestResult(String suiteName, TestResult result) {
-		childrenBySuiteName.put(suiteName, result);
-		cacheDirty = true;
 	}
 
 	@Override
@@ -184,9 +131,7 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 
 	@Override
 	public boolean isPassed() {
-		if(cacheDirty)
-			updateCache();
-		return (failCount == 0) && (skipCount == 0);
+		return summary.getFailCount() == 0 && summary.getErrorCount() == 0 && summary.getSkipCount() == 0;
 	}
 
 	@Override
@@ -196,45 +141,90 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 
 	@Override
 	public SuiteGroupResult getPreviousResult() {
-		if(parentAction == null)
-			return null;
-		AbstractBuild<?, ?> b = parentAction.owner;
-		while(true) {
-			b = b.getPreviousBuild();
-			if(b == null)
-				return null;
-			SuiteGroupResultAction r = b.getAction(SuiteGroupResultAction.class);
-			if(r != null)
-				return r.getResultAsSuiteGroupResult();
+		if(parentAction != null) {
+			AbstractBuild<?, ?> b = parentAction.owner;
+			while(true) {
+				b = b.getPreviousBuild();
+				if(b == null)
+					return null;
+				SuiteGroupResultAction r = b.getAction(SuiteGroupResultAction.class);
+				if(r != null)
+					return r.getResultAsSuiteGroupResult();
+			}
 		}
+		return null;
+	}
+
+	public JUnitMetricsInfo getMetrics() {
+		if(metrics == null) {
+			try {
+				metrics = junitDB.fetchTestProjectMetrics(summary.getBuildNumber(), summary.getProjectName());
+			}
+			catch(SQLException sE) {
+				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
+			}
+		}
+		return metrics;
 	}
 
 	public int getPassDiff() {
-		SuiteGroupResult prev = getPreviousResult();
-		if(prev == null)
+		JUnitSummaryInfo junitSummaryInfo = getPreviousSummary();
+
+		if(junitSummaryInfo != null) {
+			return getPassCount() - (int)junitSummaryInfo.getPassCount();
+		}
+		else {
 			return getPassCount();
-		return getPassCount() - prev.getPassCount();
+		}
 	}
 
 	public int getSkipDiff() {
-		SuiteGroupResult prev = getPreviousResult();
-		if(prev == null)
+		JUnitSummaryInfo junitSummaryInfo = getPreviousSummary();
+
+		if(junitSummaryInfo != null) {
+			return getSkipCount() - (int)junitSummaryInfo.getSkipCount();
+		}
+		else {
 			return getSkipCount();
-		return getSkipCount() - prev.getSkipCount();
+		}
 	}
 
 	public int getFailDiff() {
-		SuiteGroupResult prev = getPreviousResult();
-		if(prev == null)
+		JUnitSummaryInfo junitSummaryInfo = getPreviousSummary();
+
+		if(junitSummaryInfo != null) {
+			return getFailCount() - (int)junitSummaryInfo.getFailCount();
+		}
+		else {
 			return getFailCount();
-		return getFailCount() - prev.getFailCount();
+		}
 	}
 
 	public int getTotalDiff() {
-		SuiteGroupResult prev = getPreviousResult();
-		if(prev == null)
+		JUnitSummaryInfo junitSummaryInfo = getPreviousSummary();
+		if(junitSummaryInfo != null) {
+			return getTotalCount() - (int)junitSummaryInfo.getTotalCount();
+		}
+		else {
 			return getTotalCount();
-		return getTotalCount() - prev.getTotalCount();
+		}
+	}
+
+	public JUnitSummaryInfo getPreviousSummary() {
+		AbstractBuild<?, ?> build = parentAction.owner;
+		AbstractProject<?, ?> project = build.getProject();
+		JUnitSummaryInfo junitSummaryInfo = previousSummary;
+		if(junitSummaryInfo == null) {
+			try {
+				JUnitDB junitDB = new JUnitDB(project.getAbsoluteUrl());
+				junitSummaryInfo = junitDB.summarizeTestProjectForBuildPriorTo(build.getNumber(), project.getName());
+			}
+			catch(SQLException sE) {
+				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
+			}
+			previousSummary = junitSummaryInfo;
+		}
+		return junitSummaryInfo;
 	}
 
 	@Override
@@ -283,14 +273,29 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 
 	@Override
 	public int getFailedSince() { // TODO: implement this.
-		throw new UnsupportedOperationException(" Not yet implemented."); // TODO:
-																			// implement
+		// If we haven't calculated failedSince yet, and we should,
+		// do it now.
+		if(failedSince == 0 && getFailCount() > 0) {
+			try {
+				List<JUnitSummaryInfo> history = junitDB.summarizeTestProjectHistory(summary.getProjectName(), 5000);
+				for(JUnitSummaryInfo junitSummaryInfo: history) {
+					int failedBuildNumber = junitSummaryInfo.getBuildNumber();
+					if(failedBuildNumber < getOwner().getNumber() && junitSummaryInfo.getFailCount() > 0) {
+						failedSince = failedBuildNumber;
+						break;
+					}
+				}
+			}
+			catch(SQLException sE) {
+				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
+			}
+		}
+		return failedSince;
 	}
 
 	@Override
 	public Run<?, ?> getFailedSinceRun() { // TODO: implement this.
-		throw new UnsupportedOperationException(" Not yet implemented."); // TODO:
-																			// implement
+		return getOwner().getParent().getBuildByNumber(getFailedSince());
 	}
 
 	/**
@@ -299,9 +304,7 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 	@Exported(visibility = 99)
 	@Override
 	public int getFailCount() {
-		if(cacheDirty)
-			updateCache();
-		return failCount;
+		return (int)(summary.getFailCount() + summary.getErrorCount());
 	}
 
 	/**
@@ -312,9 +315,7 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 	@Override
 	@Exported(visibility = 99)
 	public int getSkipCount() {
-		if(cacheDirty)
-			updateCache();
-		return skipCount;
+		return (int)summary.getSkipCount();
 	}
 
 	/**
@@ -323,48 +324,65 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 	@Exported(visibility = 99)
 	@Override
 	public int getPassCount() {
-		if(cacheDirty)
-			updateCache();
-		return passCount;
+		return (int)summary.getPassCount();
 	}
 
 	@Override
-	public Collection<? extends TestResult> getFailedTests() {
-		// BAD result to force problems -- this method is now effectively UNIMPLEMENTED
-		LOGGER.severe("getFailedTests unimplemented. Expect garbage.");
-		if(cacheDirty)
-			updateCache();
-		return allFailedTests;
+	public Collection<TestResult> getFailedTests() {
+		List<TestResult> result = new ArrayList<TestResult>();
+		Collection<TestResult> children = getChildren();
+		for(TestResult child: children) {
+			if(child.getFailCount() > 0) {
+				result.add(child);
+			}
+		}
+		return result;
 	}
 
 	@Override
-	public Collection<? extends TestResult> getSkippedTests() {
-		LOGGER.severe("getSkippedTests unimplemented. Expect garbage.");
-		if(cacheDirty)
-			updateCache();
-		return allSkippedTests;
+	public Collection<TestResult> getSkippedTests() {
+		List<TestResult> result = new ArrayList<TestResult>();
+		Collection<TestResult> children = getChildren();
+		for(TestResult child: children) {
+			if(child.getSkipCount() > 0) {
+				result.add(child);
+			}
+		}
+		return result;
 	}
 
 	@Override
-	public Collection<? extends TestResult> getPassedTests() {
-		LOGGER.severe("getSkippedTests unimplemented. Expect garbage.");
-		if(cacheDirty)
-			updateCache();
-		return allPassedTests;
+	public Collection<TestResult> getPassedTests() {
+		List<TestResult> result = new ArrayList<TestResult>();
+		Collection<TestResult> children = getChildren();
+		for(TestResult child: children) {
+			if(child.getSkipCount() > 0 && child.getFailCount() == 0 && child.getSkipCount() == 0) {
+				result.add(child);
+			}
+		}
+		return result;
 	}
 
 	@Override
-	public Collection<? extends TestResult> getChildren() {
-		if(cacheDirty)
-			updateCache();
-		return childrenBySuiteName.values();
+	public Collection<TestResult> getChildren() {
+		AbstractBuild<?, ?> build = getOwner();
+		List<TestResult> result = new ArrayList<TestResult>();
+		try {
+			List<JUnitSummaryInfo> junitSummaryInfoList = junitDB.fetchTestProjectChildrenForBuild(build.getNumber(), build.getProject().getName());
+			for(JUnitSummaryInfo junitSummaryInfo: junitSummaryInfoList) {
+				TestResult testResult = new TestResult(this, junitSummaryInfo);
+				result.add(testResult);
+			}
+		}
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
+		return result;
 	}
 
 	@Override
 	public boolean hasChildren() {
-		if(cacheDirty)
-			updateCache();
-		return(totalCount != 0);
+		return(summary.getTotalCount() != 0);
 	}
 
 	@Override
@@ -389,9 +407,7 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 	@Exported(visibility = 99)
 	@Override
 	public float getDuration() {
-		if(cacheDirty)
-			updateCache();
-		return duration;
+		return summary.getDuration() / 1000;
 	}
 
 	@Exported(visibility = 99)
@@ -413,11 +429,8 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 
 	@Override
 	public Object getDynamic(String token, StaplerRequest req, StaplerResponse rsp) {
-		if(cacheDirty)
-			updateCache();
-
 		// If there's a test with that suiteName, serve up that test.
-		TestResult thatOne = childrenBySuiteName.get(token);
+		TestResult thatOne = getGroupBySuiteName(token);
 		if(thatOne != null) {
 			return thatOne;
 		}
@@ -428,145 +441,12 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 
 	@Override
 	public String toPrettyString() {
-		if(cacheDirty)
-			updateCache();
 		StringBuilder sb = new StringBuilder();
-		Set<String> suiteNames = childrenBySuiteName.keySet();
+		Collection<String> suiteNames = getSuiteNames();
 		for(String suiteName: suiteNames) {
 			sb.append(suiteName);
 		}
 		return sb.toString();
-	}
-
-	private void storeInCache(String suiteName, Map<String, Collection<TestResult>> sameStatusCollection, TestResult r) {
-		if(sameStatusCollection.keySet().contains(suiteName)) {
-			sameStatusCollection.get(suiteName).add(r);
-		}
-		else {
-			List<TestResult> newCollection = new ArrayList<TestResult>(Arrays.asList(r));
-			sameStatusCollection.put(suiteName, newCollection);
-		}
-	}
-
-	private void updateCache() {
-		failedTestsBySuiteName.clear();
-		skippedTestsBySuiteName.clear();
-		passedTestsBySuiteName.clear();
-		allFailedTests.clear();
-		allPassedTests.clear();
-		allSkippedTests.clear();
-		passCount = 0;
-		failCount = 0;
-		skipCount = 0;
-		float durationAccum = 0.0f;
-
-		Collection<String> suiteNames = childrenBySuiteName.keySet();
-		for(String l: suiteNames) {
-			TestResult testResult = childrenBySuiteName.get(l);
-			testResult.setParentAction(parentAction);
-			testResult.tally();
-			passCount += testResult.getPassCount();
-			failCount += testResult.getFailCount();
-			skipCount += testResult.getSkipCount();
-
-			durationAccum += testResult.getDuration();
-			if(testResult.isPassed()) {
-				storeInCache(l, passedTestsBySuiteName, testResult);
-				allPassedTests.add(testResult);
-			}
-			else if(testResult.getFailCount() > 0) {
-				storeInCache(l, failedTestsBySuiteName, testResult);
-				allFailedTests.add(testResult);
-			}
-			else {
-				storeInCache(l, skippedTestsBySuiteName, testResult);
-				allSkippedTests.add(testResult);
-			}
-		}
-
-		duration = durationAccum;
-		totalCount = passCount + failCount + skipCount;
-
-		cacheDirty = false;
-	}
-
-	/**
-	 * Collect reports from the given {@link DirectoryScanner}, while filtering out all files that were created before the given time.
-	 */
-	public void parse(long buildTime, DirectoryScanner results) throws IOException {
-		String[] includedFiles = results.getIncludedFiles();
-		File baseDir = results.getBasedir();
-
-		boolean parsed = false;
-
-		for(String value: includedFiles) {
-			File reportFile = new File(baseDir, value);
-			// only count files that were actually updated during this build
-			if((buildTime - 3000/*error margin*/<= reportFile.lastModified()) || !checkTimestamps) {
-				if(reportFile.length() == 0) {
-					// this is a typical problem when JVM quits abnormally, like OutOfMemoryError during a test.
-					SuiteResult sr = new SuiteResult(reportFile.getName(), "", "");
-					sr.addCase(new CaseResult(sr, "<init>", "Test report file " + reportFile.getAbsolutePath() + " was length 0"));
-					TestResult testResult = new TestResult(this, "(unknown)", sr);
-					childrenBySuiteName.put(testResult.getName(), testResult);
-				}
-				else {
-					parse(reportFile);
-				}
-				parsed = true;
-			}
-		}
-
-		if(!parsed) {
-			long localTime = System.currentTimeMillis();
-			if(localTime < buildTime - 1000) /*margin*/
-				// build time is in the the future. clock on this slave must be running behind
-				throw new AbortException("Clock on this slave is out of sync with the master, and therefore \n" + "I can't figure out what test results are new and what are old.\n" + "Please keep the slave clock in sync with the master.");
-
-			File f = new File(baseDir, includedFiles[0]);
-			throw new AbortException(String.format("Test reports were found but none of them are new. Did tests run? \n" + "For example, %s is %s old\n", f, Util.getTimeSpanString(buildTime - f.lastModified())));
-		}
-	}
-
-	public void parse(File reportFile) throws IOException {
-		try {
-			Map<String, List<SuiteResult>> groupedSuiteResultsMap = new HashMap<String, List<SuiteResult>>();
-
-			for(SuiteResult suiteResult: SuiteResult.parse(reportFile, keepLongStdio)) {
-				String suiteName = suiteResult.getName();
-				List<SuiteResult> groupedSuiteResults = groupedSuiteResultsMap.get(suiteName);
-				if(groupedSuiteResults == null) {
-					groupedSuiteResults = new ArrayList<SuiteResult>();
-					groupedSuiteResultsMap.put(suiteName, groupedSuiteResults);
-				}
-				groupedSuiteResults.add(suiteResult);
-			}
-
-			for(Map.Entry<String, List<SuiteResult>> groupedSuiteResultsEntry: groupedSuiteResultsMap.entrySet()) {
-				String suiteName = groupedSuiteResultsEntry.getKey();
-				List<SuiteResult> groupedSuiteResults = groupedSuiteResultsEntry.getValue();
-				TestResult testResult = new TestResult(this, suiteName, groupedSuiteResults);
-				childrenBySuiteName.put(suiteName, testResult);
-			}
-
-		}
-		catch(RuntimeException e) {
-			throw new IOException2("Failed to read " + reportFile, e);
-		}
-		catch(DocumentException e) {
-			if(!reportFile.getPath().endsWith(".xml")) {
-				throw new IOException2("Failed to read " + reportFile + "\n" + "Is this really a JUnit report file? Your configuration must be matching too many files", e);
-			}
-			else {
-				throw new IOException2("Failed to read " + reportFile, e);
-			}
-		}
-	}
-
-	public void freeze(SuiteGroupResultAction action) {
-		for(TestResult testResult: childrenBySuiteName.values()) {
-			testResult.freeze(action);
-		}
 	}
 
 	@Override

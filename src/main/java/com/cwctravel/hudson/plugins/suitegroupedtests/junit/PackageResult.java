@@ -24,22 +24,30 @@
 package com.cwctravel.hudson.plugins.suitegroupedtests.junit;
 
 import hudson.model.AbstractBuild;
+import hudson.model.AbstractProject;
+import hudson.model.Run;
 import hudson.tasks.junit.TestAction;
 import hudson.tasks.junit.History;
 import hudson.tasks.test.MetaTabulatedResult;
+import hudson.tasks.test.TestObject;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.export.Exported;
 
 import com.cwctravel.hudson.plugins.suitegroupedtests.SuiteGroupResultAction;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitDB;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitMetricsInfo;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitSummaryInfo;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitTestInfo;
 
 /**
  * Cumulative test result for a package.
@@ -48,18 +56,27 @@ import com.cwctravel.hudson.plugins.suitegroupedtests.SuiteGroupResultAction;
  */
 public final class PackageResult extends MetaTabulatedResult implements Comparable<PackageResult> {
 
-	private final String packageName;
-	/**
-	 * All {@link ClassResult}s keyed by their short name.
-	 */
-	private final Map<String, ClassResult> classes = new TreeMap<String, ClassResult>();
-	private int passCount, failCount, skipCount;
-	private final TestResult parent;
-	private float duration;
+	private static final Logger LOGGER = Logger.getLogger(PackageResult.class.getName());
 
-	PackageResult(TestResult parent, String packageName) {
-		this.packageName = packageName;
+	private int failedSince;
+
+	private final JUnitDB junitDB;
+	private final TestObject parent;
+
+	private final JUnitSummaryInfo summary;
+	private JUnitSummaryInfo previousSummary;
+
+	private JUnitMetricsInfo metrics;
+
+	PackageResult(TestObject parent, JUnitSummaryInfo summary) {
 		this.parent = parent;
+		this.summary = summary;
+		try {
+			junitDB = new JUnitDB(getOwner().getProject().getRootDir().getAbsolutePath());
+		}
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
 	}
 
 	@Override
@@ -68,7 +85,7 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 	}
 
 	@Override
-	public TestResult getParent() {
+	public TestObject getParent() {
 		return parent;
 	}
 
@@ -85,13 +102,12 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 	@Override
 	@Exported(visibility = 999)
 	public String getName() {
-		return packageName;
+		return summary.getPackageName();
 	}
 
 	@Override
 	public String getSafeName() {
-		Collection<PackageResult> siblings = (parent == null ? Collections.EMPTY_LIST : parent.getChildren());
-		return uniquifyName(siblings, safe(getName()));
+		return safe(getName());
 	}
 
 	@Override
@@ -142,25 +158,100 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 	// TODO: wait until stapler 1.60 to do this @Exported
 	@Override
 	public float getDuration() {
-		return duration;
+		return summary.getDuration() / 1000;
 	}
 
 	@Exported
 	@Override
 	public int getPassCount() {
-		return passCount;
+		return (int)summary.getPassCount();
 	}
 
 	@Exported
 	@Override
 	public int getFailCount() {
-		return failCount;
+		return (int)(summary.getFailCount() + summary.getErrorCount());
 	}
 
 	@Exported
 	@Override
 	public int getSkipCount() {
-		return skipCount;
+		return (int)summary.getSkipCount();
+	}
+
+	public int getPassDiff() {
+		JUnitSummaryInfo junitSummaryInfo = getPreviousSummary();
+
+		if(junitSummaryInfo != null) {
+			return getPassCount() - (int)junitSummaryInfo.getPassCount();
+		}
+		else {
+			return getPassCount();
+		}
+	}
+
+	public int getSkipDiff() {
+		JUnitSummaryInfo junitSummaryInfo = getPreviousSummary();
+
+		if(junitSummaryInfo != null) {
+			return getSkipCount() - (int)junitSummaryInfo.getSkipCount();
+		}
+		else {
+			return getSkipCount();
+		}
+	}
+
+	public int getFailDiff() {
+		JUnitSummaryInfo junitSummaryInfo = getPreviousSummary();
+
+		if(junitSummaryInfo != null) {
+			return getFailCount() - (int)junitSummaryInfo.getFailCount();
+		}
+		else {
+			return getFailCount();
+		}
+	}
+
+	public int getTotalDiff() {
+		JUnitSummaryInfo junitSummaryInfo = getPreviousSummary();
+		if(junitSummaryInfo != null) {
+			return getTotalCount() - (int)junitSummaryInfo.getTotalCount();
+		}
+		else {
+			return getTotalCount();
+		}
+	}
+
+	public JUnitSummaryInfo getSummary() {
+		return summary;
+	}
+
+	public JUnitMetricsInfo getMetrics() {
+		if(metrics == null) {
+			try {
+				metrics = junitDB.fetchTestPackageMetrics(summary.getBuildNumber(), summary.getProjectName(), summary.getSuiteName(), summary.getPackageName());
+			}
+			catch(SQLException sE) {
+				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
+			}
+		}
+		return metrics;
+	}
+
+	private JUnitSummaryInfo getPreviousSummary() {
+		if(previousSummary == null) {
+			AbstractBuild<?, ?> build = getOwner();
+			AbstractProject<?, ?> project = build.getProject();
+
+			try {
+				JUnitDB junitDB = new JUnitDB(project.getAbsoluteUrl());
+				previousSummary = junitDB.summarizeTestPackageForBuildPriorTo(build.getNumber(), project.getName(), parent.getName(), getName());
+			}
+			catch(SQLException sE) {
+				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
+			}
+		}
+		return previousSummary;
 	}
 
 	@Override
@@ -175,13 +266,30 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 	}
 
 	public ClassResult getClassResult(String name) {
-		return classes.get(name);
+		Collection<ClassResult> children = getChildren();
+		for(ClassResult classResult: children) {
+			if(name.equals(classResult.getName())) {
+				return classResult;
+			}
+		}
+		return null;
 	}
 
 	@Override
 	@Exported(name = "child")
 	public Collection<ClassResult> getChildren() {
-		return classes.values();
+		List<ClassResult> result = new ArrayList<ClassResult>();
+		try {
+			List<JUnitSummaryInfo> junitSummaryInfoList = junitDB.fetchTestPackageChildrenForBuild(summary.getBuildNumber(), summary.getProjectName(), summary.getSuiteName(), summary.getPackageName());
+			for(JUnitSummaryInfo junitSummaryInfo: junitSummaryInfoList) {
+				ClassResult classResult = new ClassResult(this, junitSummaryInfo);
+				result.add(classResult);
+			}
+		}
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
+		return result;
 	}
 
 	/**
@@ -189,8 +297,7 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 	 */
 	@Override
 	public boolean hasChildren() {
-		int totalTests = passCount + failCount + skipCount;
-		return(totalTests != 0);
+		return summary.getTotalCount() > 0;
 	}
 
 	/**
@@ -200,15 +307,20 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 	 */
 	@Override
 	public List<CaseResult> getFailedTests() {
-		List<CaseResult> r = new ArrayList<CaseResult>();
-		for(ClassResult clr: classes.values()) {
-			for(CaseResult cr: clr.getChildren()) {
-				if(!cr.isPassed() && !cr.isSkipped()) {
-					r.add(cr);
+		List<CaseResult> result = new ArrayList<CaseResult>();
+		try {
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByPackage(summary.getBuildId(), summary.getProjectName(), summary.getSuiteName(), summary.getPackageName());
+			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
+				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_FAIL || junitTestInfo.getStatus() == JUnitTestInfo.STATUS_ERROR) {
+					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					result.add(caseResult);
 				}
 			}
 		}
-		return r;
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
+		return result;
 	}
 
 	/**
@@ -229,16 +341,21 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 	 */
 	@Override
 	public Collection<? extends hudson.tasks.test.TestResult> getPassedTests() {
-		List<CaseResult> r = new ArrayList<CaseResult>();
-		for(ClassResult clr: classes.values()) {
-			for(CaseResult cr: clr.getChildren()) {
-				if(cr.isPassed()) {
-					r.add(cr);
+		List<CaseResult> result = new ArrayList<CaseResult>();
+		try {
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByPackage(summary.getBuildId(), summary.getProjectName(), summary.getSuiteName(), summary.getPackageName());
+			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
+				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SUCCESS) {
+					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					result.add(caseResult);
 				}
 			}
 		}
-		Collections.sort(r, CaseResult.BY_AGE);
-		return r;
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
+		Collections.sort(result, CaseResult.BY_AGE);
+		return result;
 	}
 
 	/**
@@ -248,87 +365,63 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 	 */
 	@Override
 	public Collection<? extends hudson.tasks.test.TestResult> getSkippedTests() {
-		List<CaseResult> r = new ArrayList<CaseResult>();
-		for(ClassResult clr: classes.values()) {
-			for(CaseResult cr: clr.getChildren()) {
-				if(cr.isSkipped()) {
-					r.add(cr);
+		List<CaseResult> result = new ArrayList<CaseResult>();
+		try {
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByPackage(summary.getBuildId(), summary.getProjectName(), summary.getSuiteName(), summary.getPackageName());
+			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
+				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SKIP) {
+					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					result.add(caseResult);
 				}
 			}
 		}
-		Collections.sort(r, CaseResult.BY_AGE);
-		return r;
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
+
+		Collections.sort(result, CaseResult.BY_AGE);
+		return result;
 	}
 
-	// /**
-	// * If this test failed, then return the build number
-	// * when this test started failing.
-	// */
-	// @Override
-	// TODO: implement! public int getFailedSince() {
-	// return 0; // (FIXME: generated)
-	// }
-	// /**
-	// * If this test failed, then return the run
-	// * when this test started failing.
-	// */
-	// TODO: implement! @Override
-	// public Run<?, ?> getFailedSinceRun() {
-	// return null; // (FIXME: generated)
-	// }
+	@Override
+	public int getFailedSince() {
+		if(failedSince == 0 && getFailCount() > 0) {
+			try {
+				List<JUnitSummaryInfo> history = junitDB.summarizeTestPackageHistory(summary.getProjectName(), summary.getSuiteName(), summary.getPackageName(), 5000);
+				for(JUnitSummaryInfo junitSummaryInfo: history) {
+					int failedBuildNumber = junitSummaryInfo.getBuildNumber();
+					if(failedBuildNumber < getOwner().getNumber() && junitSummaryInfo.getFailCount() > 0) {
+						failedSince = failedBuildNumber;
+						break;
+					}
+				}
+			}
+			catch(SQLException sE) {
+				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
+			}
+		}
+		return failedSince;
+	}
+
+	@Override
+	public Run<?, ?> getFailedSinceRun() {
+		return getOwner().getParent().getBuildByNumber(getFailedSince());
+	}
+
 	/**
 	 * @return true if every test was not skipped and every test did not fail, false otherwise.
 	 */
 	@Override
 	public boolean isPassed() {
-		return(failCount == 0 && skipCount == 0);
-	}
-
-	void add(CaseResult r) {
-		String n = r.getSimpleName(), sn = safe(n);
-		ClassResult c = getClassResult(sn);
-		if(c == null) {
-			classes.put(sn, c = new ClassResult(this, n));
-		}
-		c.add(r);
-		duration += r.getDuration();
-	}
-
-	/**
-	 * Recount my children
-	 */
-	@Override
-	public void tally() {
-		passCount = 0;
-		failCount = 0;
-		skipCount = 0;
-		duration = 0;
-
-		for(ClassResult cr: classes.values()) {
-			cr.tally();
-			passCount += cr.getPassCount();
-			failCount += cr.getFailCount();
-			skipCount += cr.getSkipCount();
-			duration += cr.getDuration();
-		}
-	}
-
-	void freeze() {
-		passCount = failCount = skipCount = 0;
-		for(ClassResult cr: classes.values()) {
-			cr.freeze();
-			passCount += cr.getPassCount();
-			failCount += cr.getFailCount();
-			skipCount += cr.getSkipCount();
-		}
+		return summary.getFailCount() == 0 && summary.getErrorCount() == 0 && summary.getSkipCount() == 0;
 	}
 
 	public int compareTo(PackageResult that) {
-		return this.packageName.compareTo(that.packageName);
+		return summary.getPackageName().compareTo(that.getSummary().getPackageName());
 	}
 
 	public String getDisplayName() {
-		return packageName;
+		return summary.getPackageName();
 	}
 
 	public String getRootUrl(String urlName) {

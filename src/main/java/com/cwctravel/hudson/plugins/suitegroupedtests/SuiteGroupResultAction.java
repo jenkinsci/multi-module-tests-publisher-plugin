@@ -1,32 +1,25 @@
 package com.cwctravel.hudson.plugins.suitegroupedtests;
 
-import hudson.XmlFile;
 import hudson.model.BuildListener;
 import hudson.model.AbstractBuild;
 import hudson.tasks.junit.TestAction;
 import hudson.tasks.test.AbstractTestResultAction;
 import hudson.tasks.test.TestObject;
-import hudson.util.XStream2;
 
-import java.io.File;
-import java.io.IOException;
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerProxy;
 
-import com.cwctravel.hudson.plugins.suitegroupedtests.junit.CaseResult;
 import com.cwctravel.hudson.plugins.suitegroupedtests.junit.SuiteGroupResult;
-import com.cwctravel.hudson.plugins.suitegroupedtests.junit.SuiteResult;
 import com.cwctravel.hudson.plugins.suitegroupedtests.junit.TestResult;
-import com.thoughtworks.xstream.XStream;
 
 public class SuiteGroupResultAction extends AbstractTestResultAction<SuiteGroupResultAction> implements StaplerProxy {
+	private static final Logger LOGGER = Logger.getLogger(SuiteGroupResultAction.class.getName());
+
 	public static abstract class Data {
 		/**
 		 * Returns all TestActions for the testObject.
@@ -35,8 +28,6 @@ public class SuiteGroupResultAction extends AbstractTestResultAction<SuiteGroupR
 		 */
 		public abstract List<? extends TestAction> getTestAction(TestObject testObject);
 	}
-
-	public static final String RESULT_DATA_FILENAME = "testResultGroups.xml";
 
 	private int failCount;
 	private int skipCount;
@@ -47,7 +38,7 @@ public class SuiteGroupResultAction extends AbstractTestResultAction<SuiteGroupR
 	/**
 	 * Store the result group itself in a separate file so we don't eat up too much memory.
 	 */
-	private transient WeakReference<SuiteGroupResult> resultGroupReference;
+	private SuiteGroupResult suiteGroupResult;
 
 	public SuiteGroupResultAction(AbstractBuild<?, ?> owner, SuiteGroupResult r, BuildListener listener) {
 		super(owner);
@@ -58,26 +49,13 @@ public class SuiteGroupResultAction extends AbstractTestResultAction<SuiteGroupR
 	 * Store the data to a separate file, and update our cached values.
 	 */
 	public synchronized void setResult(SuiteGroupResult r, BuildListener listener) {
-
 		r.setParentAction(this);
 
 		totalCount = r.getTotalCount();
 		failCount = r.getFailCount();
 		skipCount = r.getSkipCount();
 
-		// persist the data
-		try {
-			getDataFile().write(r);
-		}
-		catch(IOException e) {
-			e.printStackTrace(listener.fatalError("Failed to save the labeled test groups publisher's test result"));
-		}
-
-		this.resultGroupReference = new WeakReference<SuiteGroupResult>(r);
-	}
-
-	private XmlFile getDataFile() {
-		return new XmlFile(XSTREAM, new File(owner.getRootDir(), RESULT_DATA_FILENAME));
+		this.suiteGroupResult = r;
 	}
 
 	public Object getTarget() {
@@ -139,46 +117,12 @@ public class SuiteGroupResultAction extends AbstractTestResultAction<SuiteGroupR
 	 */
 	@Override
 	public synchronized SuiteGroupResult getResult() {
-		SuiteGroupResult r;
-		if(resultGroupReference == null) {
-			r = load();
-			resultGroupReference = new WeakReference<SuiteGroupResult>(r);
-		}
-		else {
-			r = resultGroupReference.get();
-		}
-
-		if(r == null) {
-			r = load();
-			resultGroupReference = new WeakReference<SuiteGroupResult>(r);
-		}
-		if(r == null) {
-			logger.severe("Couldn't get result for SuiteGroupResult " + this);
-			return null;
-		}
-
 		if(totalCount == null) {
-			totalCount = r.getTotalCount();
-			failCount = r.getFailCount();
-			skipCount = r.getSkipCount();
+			totalCount = suiteGroupResult.getTotalCount();
+			failCount = suiteGroupResult.getFailCount();
+			skipCount = suiteGroupResult.getSkipCount();
 		}
-		return r;
-	}
-
-	/**
-	 * Loads a {@link MetaLabeledTestResultGroup} from disk.
-	 */
-	private SuiteGroupResult load() {
-		SuiteGroupResult r;
-		try {
-			r = (SuiteGroupResult)getDataFile().read();
-		}
-		catch(IOException e) {
-			logger.log(Level.WARNING, "Failed to load " + getDataFile(), e);
-			r = new SuiteGroupResult(); // return a dummy
-		}
-		r.setParentAction(this);
-		return r;
+		return suiteGroupResult;
 	}
 
 	/**
@@ -232,10 +176,6 @@ public class SuiteGroupResultAction extends AbstractTestResultAction<SuiteGroupR
 		return this;
 	}
 
-	private static final Logger logger = Logger.getLogger(SuiteGroupResultAction.class.getName());
-
-	private static final XStream XSTREAM = new XStream2();
-
 	public static List<TestAction> getTestActions(TestObject testObject, AbstractTestResultAction<?> testResultAction) {
 		if(testResultAction != null && testResultAction instanceof SuiteGroupResultAction) {
 			SuiteGroupResultAction sgra = (SuiteGroupResultAction)testResultAction;
@@ -245,12 +185,4 @@ public class SuiteGroupResultAction extends AbstractTestResultAction<SuiteGroupR
 			return new ArrayList<TestAction>();
 		}
 	}
-
-	static {
-		XSTREAM.alias("suite-group", SuiteGroupResult.class);
-		XSTREAM.alias("result", TestResult.class);
-		XSTREAM.alias("suite", SuiteResult.class);
-		XSTREAM.alias("case", CaseResult.class);
-	}
-
 }

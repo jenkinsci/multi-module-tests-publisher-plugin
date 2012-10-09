@@ -95,10 +95,13 @@ THE SOFTWARE.
         <td class="pane-header" style="width:1em; font-size:smaller; white-space:nowrap;">(${%diff})</td>
         <td class="pane-header" style="width:5em">${%Total}</td>
         <td class="pane-header" style="width:1em; font-size:smaller; white-space:nowrap;">(${%diff})</td>
+        <td class="pane-header" style="width:1em; font-size:smaller; white-space:nowrap;">${%Success Rate}</td>
+        <td class="pane-header" style="width:1em; font-size:smaller; white-space:nowrap;">${%Failure Rate}</td>
+        <td class="pane-header" style="width:1em; font-size:smaller; white-space:nowrap;">${%Skip Rate}</td>        
       </tr>
       <tbody>
-        <j:forEach var="p" items="${it.children}">
-          <j:set var="prev" value="${p.previousResult}" />
+        <j:forEach var="p" items="${it.children}">  
+         <j:set var="prev" value="${p.previousResult}" />        
           <tr>
             <td class="pane">
               <a href="${p.safeName}/"><span style="${prev==null?'font-weight:bold':''}"><st:out value="${p.name}" /></span></a>
@@ -110,16 +113,19 @@ THE SOFTWARE.
             <td class="pane" style="text-align:right" data="${p.duration}">${p.durationString}</td>
             <td class="pane" style="text-align:right">${p.failCount}</td>
             <td class="pane" style="text-align:right">
-              ${h.getDiffString2(p.failCount-prev.failCount)}
+              ${h.getDiffString2(p.failDiff)}
             </td>
             <td class="pane" style="text-align:right">${p.skipCount}</td>
             <td class="pane" style="text-align:right">
-              ${h.getDiffString2(p.skipCount-prev.skipCount)}
+              ${h.getDiffString2(p.skipDiff)}
             </td>
             <td class="pane" style="text-align:right">${p.totalCount}</td>
             <td class="pane" style="text-align:right">
-              ${h.getDiffString2(p.totalCount-prev.totalCount)}
+              ${h.getDiffString2(p.totalDiff)}
             </td>
+            <td class="pane" style="text-align:right">${p.metrics.successRate}%</td>
+            <td class="pane" style="text-align:right">${p.metrics.failureRate}%</td>
+            <td class="pane" style="text-align:right">${p.metrics.skipRate}%</td>
           </tr>
         </j:forEach>
       </tbody>

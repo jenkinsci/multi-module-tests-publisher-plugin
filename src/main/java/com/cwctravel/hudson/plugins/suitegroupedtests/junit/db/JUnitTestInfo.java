@@ -22,6 +22,8 @@ public class JUnitTestInfo {
 	private String className;
 	private String caseName;
 
+	private JUnitTestDetailInfo detail;
+
 	public long getId() {
 		return id;
 	}
@@ -116,6 +118,14 @@ public class JUnitTestInfo {
 
 	public void setIndex(int index) {
 		this.index = index;
+	}
+
+	public JUnitTestDetailInfo getDetail() {
+		return detail;
+	}
+
+	public void setDetail(JUnitTestDetailInfo detail) {
+		this.detail = detail;
 	}
 
 	@Override
