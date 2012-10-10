@@ -169,7 +169,7 @@ public class SuiteGroupResultPublisher extends Recorder implements Serializable,
 
 	private static final class ParseResultCallable implements FilePath.FileCallable<Void> {
 		private static final long serialVersionUID = -2412534164383439939L;
-		private static final boolean checkTimestamps = false; // TODO: change to System.getProperty
+		private static final boolean checkTimestamps = true; // TODO: change to System.getProperty
 
 		private final boolean keepLongStdio;
 

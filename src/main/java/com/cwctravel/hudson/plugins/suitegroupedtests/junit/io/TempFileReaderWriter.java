@@ -12,7 +12,7 @@ public class TempFileReaderWriter implements ReaderWriter {
 	private final File tempFile;
 
 	public TempFileReaderWriter(char[] data, int offset, int length) throws IOException {
-		tempFile = File.createTempFile("", ".dat");
+		tempFile = File.createTempFile("junit_", ".dat");
 		BufferedWriter bW = new BufferedWriter(new FileWriter(tempFile));
 		try {
 			bW.write(data, offset, length);

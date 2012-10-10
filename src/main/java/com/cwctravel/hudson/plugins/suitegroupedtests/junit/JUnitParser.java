@@ -283,6 +283,8 @@ public class JUnitParser implements ContentHandler {
 		if(currentState == STATE_TEST_SUITE_START && "testsuite".equals(qName)) {
 			insertTestCase(buildId, buildNumber, projectName, currentSuiteName, "<init>", "<init>", "<init>", currentSuiteTestCaseIndex, currentSuiteStatus, currentSuiteTimestamp, currentSuiteDuration, currentSuiteErrorMessage, currentSuiteErrorStackTrace, currentSuiteStdout, currentSuiteStderr);
 			currentSuiteTestCaseIndex = 0;
+			currentSuiteStdout = null;
+			currentSuiteStderr = null;
 		}
 		else if(currentState == STATE_TEST_SUITE_TEST_CASE_START && "testcase".equals(qName)) {
 			insertTestCase(buildId, buildNumber, projectName, currentSuiteName, currentTestPackageName, currentTestClassName, currentTestCaseName, currentSuiteTestCaseIndex++, currentTestCaseStatus, currentSuiteTimestamp, currentTestCaseDuration, currentTestCaseErrorMessage, currentTestCaseErrorStackTrace, currentTestCaseStdout, currentTestCaseStderr);
