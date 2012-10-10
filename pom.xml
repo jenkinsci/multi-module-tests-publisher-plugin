@@ -30,8 +30,8 @@
  </distributionManagement>
 
   <scm>
-    <connection>scm:git:ssh://git@github.com/jenkinsci/suite-test-groups-publisher.git</connection>
-    <developerConnection>scm:git:ssh://git@github.com/jenkinsci/suite-test-groups-publisher.git</developerConnection>
+    <connection>scm:git:ssh://git@github.com/jenkinsci/suite-test-groups-publisher-plugin.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/jenkinsci/suite-test-groups-publisher-plugin.git</developerConnection>
     <url>https://github.com/jenkinsci/suite-test-groups-publisher</url>
   </scm>
 
