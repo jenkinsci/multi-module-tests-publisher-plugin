@@ -32,7 +32,7 @@
   <scm>
     <connection>scm:git:ssh://git@github.com/jenkinsci/suite-test-groups-publisher-plugin.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/jenkinsci/suite-test-groups-publisher-plugin.git</developerConnection>
-    <url>https://github.com/jenkinsci/suite-test-groups-publisher</url>
+    <url>https://github.com/jenkinsci/suite-test-groups-publisher-plugin</url>
   </scm>
 
   <!-- get every artifact through repo.jenkins-ci.org, which proxies all the artifacts that we need -->
