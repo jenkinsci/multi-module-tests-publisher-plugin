@@ -213,8 +213,8 @@ class ChartLabel implements Comparable<ChartLabel> {
 			return 1;
 		if(this.o == null)
 			return -1;
-		long startTimeDiff = this.o.getStartTime() - that.o.getStartTime();
-		return startTimeDiff < 0 ? -1 : (startTimeDiff == 0 ? 0 : 1);
+		long buildNumberDiff = this.o.getBuildNumber() - that.o.getBuildNumber();
+		return buildNumberDiff < 0 ? -1 : (buildNumberDiff == 0 ? 0 : 1);
 	}
 
 	@Override

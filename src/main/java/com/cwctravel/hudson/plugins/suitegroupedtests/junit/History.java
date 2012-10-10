@@ -312,8 +312,8 @@ public class History extends hudson.tasks.junit.History {
 		}
 
 		public int compareTo(ChartLabel that) {
-			long startTimeDiff = this.o.getStartTime() - that.o.getStartTime();
-			return startTimeDiff < 0 ? -1 : (startTimeDiff == 0 ? 0 : 1);
+			long buildNumberDiff = this.o.getBuildNumber() - that.o.getBuildNumber();
+			return buildNumberDiff < 0 ? -1 : (buildNumberDiff == 0 ? 0 : 1);
 		}
 
 		@Override
