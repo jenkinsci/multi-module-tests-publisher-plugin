@@ -67,7 +67,6 @@ public class SuiteGroupResultProjectAction extends TestResultProjectAction {
 					try {
 						junitDB = new JUnitDB(project.getRootDir().getAbsolutePath());
 						List<JUnitSummaryInfo> historyList = junitDB.summarizeTestSuiteHistory(project.getName(), suiteName, MAX_HISTORY);
-						Collections.reverse(historyList);
 						return new TrendGraph("/testReport/" + suiteName, "count", historyList);
 					}
 					catch(SQLException e) {

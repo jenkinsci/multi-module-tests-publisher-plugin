@@ -590,8 +590,8 @@ public class JUnitDB {
 
 					JUnitTestDetailInfo junitTestDetailInfo = junitTestInfo.getDetail();
 					if(junitTestDetailInfo != null) {
-						pS.setString(12, junitTestDetailInfo.getErrorMessage());
-						pS.setString(13, junitTestDetailInfo.getErrorStackTrace());
+						pS.setString(12, truncate(junitTestDetailInfo.getErrorMessage(), 1024));
+						pS.setString(13, truncate(junitTestDetailInfo.getErrorStackTrace(), 8192));
 
 						Reader stdoutReader = junitTestDetailInfo.getStdout();
 						if(stdoutReader != null) {
@@ -625,6 +625,13 @@ public class JUnitDB {
 				connection.close();
 			}
 		}
+	}
+
+	private String truncate(String str, int limit) {
+		if(str != null && str.length() > limit) {
+			str = str.substring(0, limit);
+		}
+		return str;
 	}
 
 	private List<JUnitTestInfo> readTests(ResultSet rS) throws SQLException {

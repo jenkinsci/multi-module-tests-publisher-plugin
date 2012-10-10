@@ -38,7 +38,6 @@ import hudson.util.StackedAreaRenderer2;
 import java.awt.Color;
 import java.awt.Paint;
 import java.sql.SQLException;
-import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -105,10 +104,6 @@ public class History extends hudson.tasks.junit.History {
 				String suiteName = caseResult.getParent().getParent().getParent().getName();
 				historyItems = junitDB.summarizeTestCaseHistory(projectName, suiteName, packageName, className, caseName, limit);
 			}
-
-			if(historyItems != null) {
-				Collections.reverse(historyItems);
-			}
 		}
 		catch(SQLException sE) {
 			LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
@@ -123,7 +118,7 @@ public class History extends hudson.tasks.junit.History {
 
 	@Override
 	public boolean historyAvailable() {
-		return historyItems != null;
+		return historyItems != null && historyItems.size() > 1;
 	}
 
 	/**
