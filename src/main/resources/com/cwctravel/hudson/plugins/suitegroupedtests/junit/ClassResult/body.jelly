@@ -30,9 +30,9 @@ THE SOFTWARE.
         <td class="pane-header">${%Test name}</td>
         <td class="pane-header" style="width:6em">${%Duration}</td>
         <td class="pane-header" style="width:6em">${%Status}</td>
-        <td class="pane-header" style="width:6em; font-size:smaller; white-space:nowrap;">${%Success Rate}</td>
-        <td class="pane-header" style="width:6em; font-size:smaller; white-space:nowrap;">${%Failure Rate}</td>
-        <td class="pane-header" style="width:6em; font-size:smaller; white-space:nowrap;">${%Skip Rate}</td>             
+        <td class="pane-header" style="width:5em; font-size:smaller; white-space:nowrap;">${%Success Rate}</td>
+        <td class="pane-header" style="width:5em; font-size:smaller; white-space:nowrap;">${%Failure Rate}</td>
+        <td class="pane-header" style="width:5em; font-size:smaller; white-space:nowrap;">${%Skip Rate}</td>             
       </tr>
       <tbody>
         <j:forEach var="p" items="${it.children}" varStatus="status">
@@ -51,9 +51,9 @@ THE SOFTWARE.
                 ${pst.message}
               </span>
             </td>
-            <td class="pane" style="text-align:right">${p.metrics.successRate}%</td>
-            <td class="pane" style="text-align:right">${p.metrics.failureRate}%</td>
-            <td class="pane" style="text-align:right">${p.metrics.skipRate}%</td>                 
+            <td class="pane" style="text-align:right" data="${p.metrics.successRate}">${p.metrics.successRate}%</td>
+            <td class="pane" style="text-align:right" data="${p.metrics.failureRate}">${p.metrics.failureRate}%</td>
+            <td class="pane" style="text-align:right" data="${p.metrics.skipRate}">${p.metrics.skipRate}%</td>                 
           </tr>
         </j:forEach>
       </tbody>

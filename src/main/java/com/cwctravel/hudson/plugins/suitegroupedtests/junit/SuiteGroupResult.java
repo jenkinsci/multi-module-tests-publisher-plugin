@@ -211,20 +211,15 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 	}
 
 	public JUnitSummaryInfo getPreviousSummary() {
-		AbstractBuild<?, ?> build = parentAction.owner;
-		AbstractProject<?, ?> project = build.getProject();
-		JUnitSummaryInfo junitSummaryInfo = previousSummary;
-		if(junitSummaryInfo == null) {
+		if(previousSummary == null) {
 			try {
-				JUnitDB junitDB = new JUnitDB(project.getAbsoluteUrl());
-				junitSummaryInfo = junitDB.summarizeTestProjectForBuildPriorTo(build.getNumber(), project.getName());
+				previousSummary = junitDB.summarizeTestProjectForBuildPriorTo(summary.getBuildNumber(), summary.getProjectName());
 			}
 			catch(SQLException sE) {
 				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
 			}
-			previousSummary = junitSummaryInfo;
 		}
-		return junitSummaryInfo;
+		return previousSummary;
 	}
 
 	@Override

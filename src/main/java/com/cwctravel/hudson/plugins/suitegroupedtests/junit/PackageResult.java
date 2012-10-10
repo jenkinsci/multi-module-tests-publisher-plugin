@@ -24,7 +24,6 @@
 package com.cwctravel.hudson.plugins.suitegroupedtests.junit;
 
 import hudson.model.AbstractBuild;
-import hudson.model.AbstractProject;
 import hudson.model.Run;
 import hudson.tasks.junit.TestAction;
 import hudson.tasks.junit.History;
@@ -158,7 +157,7 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 	// TODO: wait until stapler 1.60 to do this @Exported
 	@Override
 	public float getDuration() {
-		return summary.getDuration() / 1000;
+		return (float)summary.getDuration() / 1000;
 	}
 
 	@Exported
@@ -238,14 +237,15 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 		return metrics;
 	}
 
+	@Override
+	public PackageResult getPreviousResult() {
+		return new PackageResult(getParent(), getPreviousSummary());
+	}
+
 	private JUnitSummaryInfo getPreviousSummary() {
 		if(previousSummary == null) {
-			AbstractBuild<?, ?> build = getOwner();
-			AbstractProject<?, ?> project = build.getProject();
-
 			try {
-				JUnitDB junitDB = new JUnitDB(project.getAbsoluteUrl());
-				previousSummary = junitDB.summarizeTestPackageForBuildPriorTo(build.getNumber(), project.getName(), parent.getName(), getName());
+				previousSummary = junitDB.summarizeTestPackageForBuildPriorTo(summary.getBuildNumber(), summary.getProjectName(), summary.getSuiteName(), summary.getPackageName());
 			}
 			catch(SQLException sE) {
 				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);

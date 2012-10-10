@@ -95,9 +95,9 @@ THE SOFTWARE.
         <td class="pane-header" style="width:1em; font-size:smaller; white-space:nowrap;">(${%diff})</td>
         <td class="pane-header" style="width:5em">${%Total}</td>
         <td class="pane-header" style="width:1em; font-size:smaller; white-space:nowrap;">(${%diff})</td>
-        <td class="pane-header" style="width:1em; font-size:smaller; white-space:nowrap;">${%Success Rate}</td>
-        <td class="pane-header" style="width:1em; font-size:smaller; white-space:nowrap;">${%Failure Rate}</td>
-        <td class="pane-header" style="width:1em; font-size:smaller; white-space:nowrap;">${%Skip Rate}</td>          
+        <td class="pane-header" style="width:5em; font-size:smaller; white-space:nowrap;">${%Success Rate}</td>
+        <td class="pane-header" style="width:5em; font-size:smaller; white-space:nowrap;">${%Failure Rate}</td>
+        <td class="pane-header" style="width:5em; font-size:smaller; white-space:nowrap;">${%Skip Rate}</td>          
       </tr>
       <tbody>
         <j:forEach var="p" items="${it.children}">

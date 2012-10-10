@@ -24,7 +24,6 @@
 package com.cwctravel.hudson.plugins.suitegroupedtests.junit;
 
 import hudson.model.AbstractBuild;
-import hudson.model.AbstractProject;
 import hudson.model.Run;
 import hudson.tasks.junit.TestAction;
 import hudson.tasks.junit.History;
@@ -200,7 +199,7 @@ public final class ClassResult extends TabulatedResult implements Comparable<Cla
 	// TODO: wait for stapler 1.60 @Exported
 	@Override
 	public float getDuration() {
-		return summary.getDuration() / 1000;
+		return (float)summary.getDuration() / 1000;
 	}
 
 	@Override
@@ -302,20 +301,15 @@ public final class ClassResult extends TabulatedResult implements Comparable<Cla
 	}
 
 	private JUnitSummaryInfo getPreviousSummary() {
-		JUnitSummaryInfo junitSummaryInfo = previousSummary;
 		if(previousSummary == null) {
-			AbstractBuild<?, ?> build = getOwner();
-			AbstractProject<?, ?> project = build.getProject();
-
 			try {
-				JUnitDB junitDB = new JUnitDB(project.getAbsoluteUrl());
-				previousSummary = junitDB.summarizeTestClassForBuildPriorTo(build.getNumber(), summary.getProjectName(), summary.getSuiteName(), summary.getPackageName(), summary.getClassName());
+				previousSummary = junitDB.summarizeTestClassForBuildPriorTo(summary.getBuildNumber(), summary.getProjectName(), summary.getSuiteName(), summary.getPackageName(), summary.getClassName());
 			}
 			catch(SQLException sE) {
 				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
 			}
 		}
-		return junitSummaryInfo;
+		return previousSummary;
 	}
 
 	public String getClassName() {

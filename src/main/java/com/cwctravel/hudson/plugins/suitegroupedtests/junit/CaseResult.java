@@ -25,7 +25,6 @@ package com.cwctravel.hudson.plugins.suitegroupedtests.junit;
 
 import static java.util.Collections.emptyList;
 import hudson.model.AbstractBuild;
-import hudson.model.AbstractProject;
 import hudson.model.Run;
 import hudson.tasks.junit.SuiteResult;
 import hudson.tasks.junit.TestAction;
@@ -129,7 +128,7 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	@Override
 	@Exported(visibility = 9)
 	public float getDuration() {
-		return testInfo.getDuration() / 1000;
+		return (float)testInfo.getDuration() / 1000;
 	}
 
 	/**
@@ -484,10 +483,7 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 
 	private JUnitTestInfo getPreviousTestInfo() {
 		if(previousTestInfo == null) {
-			AbstractBuild<?, ?> build = getOwner();
-			AbstractProject<?, ?> project = build.getProject();
 			try {
-				JUnitDB junitDB = new JUnitDB(project.getAbsoluteUrl());
 				previousTestInfo = junitDB.queryTestCaseForBuildPriorTo(testInfo.getProjectName(), testInfo.getBuildNumber(), testInfo.getSuiteName(), testInfo.getPackageName(), testInfo.getClassName(), testInfo.getCaseName());
 			}
 			catch(SQLException sE) {

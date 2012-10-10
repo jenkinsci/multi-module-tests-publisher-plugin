@@ -176,7 +176,7 @@ public final class TestResult extends MetaTabulatedResult {
 	@Exported(visibility = 999)
 	@Override
 	public float getDuration() {
-		return summary.getDuration() / 1000;
+		return (float)summary.getDuration() / 1000;
 	}
 
 	@Exported(visibility = 999)
@@ -252,18 +252,21 @@ public final class TestResult extends MetaTabulatedResult {
 		return metrics;
 	}
 
+	@Override
+	public TestResult getPreviousResult() {
+		return new TestResult(getParent(), getPreviousSummary());
+	}
+
 	private JUnitSummaryInfo getPreviousSummary() {
-		JUnitSummaryInfo junitSummaryInfo = previousSummary;
-		if(junitSummaryInfo == null) {
+		if(previousSummary == null) {
 			try {
-				junitSummaryInfo = junitDB.summarizeTestSuiteForBuildPriorTo(summary.getBuildNumber(), summary.getProjectName(), parent.getName());
+				previousSummary = junitDB.summarizeTestSuiteForBuildPriorTo(summary.getBuildNumber(), summary.getProjectName(), getName());
 			}
 			catch(SQLException sE) {
 				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
 			}
-			previousSummary = junitSummaryInfo;
 		}
-		return junitSummaryInfo;
+		return previousSummary;
 	}
 
 	@Override
