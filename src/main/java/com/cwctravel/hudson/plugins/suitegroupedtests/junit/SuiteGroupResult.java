@@ -55,12 +55,12 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 
 	public SuiteGroupResult() {}
 
-	public SuiteGroupResult(AbstractBuild<?, ?> build, String description) {
+	public SuiteGroupResult(AbstractBuild<?, ?> build, JUnitSummaryInfo summary, String description) {
 		this.description = description;
 		try {
 			AbstractProject<?, ?> project = build.getProject();
 			this.junitDB = new JUnitDB(project.getRootDir().getAbsolutePath());
-			this.summary = junitDB.summarizeTestProjectForBuild(build.getNumber(), project.getName());
+			this.summary = summary;
 		}
 		catch(SQLException sE) {
 			throw new JUnitException(sE);

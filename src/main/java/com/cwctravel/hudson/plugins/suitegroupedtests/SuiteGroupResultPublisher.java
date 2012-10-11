@@ -46,6 +46,7 @@ import com.cwctravel.hudson.plugins.suitegroupedtests.SuiteGroupResultAction.Dat
 import com.cwctravel.hudson.plugins.suitegroupedtests.junit.JUnitParser;
 import com.cwctravel.hudson.plugins.suitegroupedtests.junit.SuiteGroupResult;
 import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitDB;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitSummaryInfo;
 
 public class SuiteGroupResultPublisher extends Recorder implements Serializable, MatrixAggregatable {
 	/**
@@ -113,33 +114,33 @@ public class SuiteGroupResultPublisher extends Recorder implements Serializable,
 		final long nowMaster = System.currentTimeMillis();
 
 		File junitDBDir = build.getProject().getRootDir();
-		build.getWorkspace().act(new ParseResultCallable(junitDBDir, build.getId(), build.getNumber(), build.getProject().getName(), config.getTestResultFileMask(), buildTime, nowMaster, config.isKeepLongStdio()));
+		JUnitSummaryInfo summary = build.getWorkspace().act(new ParseResultCallable(junitDBDir, build.getId(), build.getNumber(), build.getProject().getName(), config.getTestResultFileMask(), buildTime, nowMaster, config.isKeepLongStdio()));
 
-		SuiteGroupResult suiteGroupResult = new SuiteGroupResult(build, "(no description)");
-		SuiteGroupResultAction action = new SuiteGroupResultAction(build, suiteGroupResult, listener);
-		build.addAction(action);
+		if(summary != null) {
+			SuiteGroupResult suiteGroupResult = new SuiteGroupResult(build, summary, "(no description)");
+			SuiteGroupResultAction action = new SuiteGroupResultAction(build, suiteGroupResult, listener);
+			build.addAction(action);
 
-		List<Data> data = new ArrayList<Data>();
-		if(testDataPublishers != null) {
-			for(TestDataPublisher tdp: testDataPublishers) {
-				Data d = tdp.getTestData(build, launcher, listener, suiteGroupResult);
-				if(d != null) {
-					data.add(d);
+			List<Data> data = new ArrayList<Data>();
+			if(testDataPublishers != null) {
+				for(TestDataPublisher tdp: testDataPublishers) {
+					Data d = tdp.getTestData(build, launcher, listener, suiteGroupResult);
+					if(d != null) {
+						data.add(d);
+					}
 				}
 			}
+			action.setData(data);
+
+			Result healthResult = determineBuildHealth(build, suiteGroupResult);
+
+			// Parsers can only decide to make the build worse than it currently is, never better.
+			if(healthResult != null && healthResult.isWorseThan(build.getResult())) {
+				build.setResult(healthResult);
+			}
 		}
-		action.setData(data);
-
-		Result healthResult = determineBuildHealth(build, suiteGroupResult);
-
-		// Parsers can only decide to make the build worse than it currently is, never better.
-		if(healthResult != null && healthResult.isWorseThan(build.getResult())) {
-			build.setResult(healthResult);
-		}
-
-		String debugString = suiteGroupResult.toString(); // resultGroup.toPrettyString();
-		LOGGER.info("Test results parsed: " + debugString);
-		listener.getLogger().println("Test results parsed: " + debugString);
+		LOGGER.info("Test results parsed.");
+		listener.getLogger().println("Test results parsed.");
 
 		return true;
 	}
@@ -167,7 +168,7 @@ public class SuiteGroupResultPublisher extends Recorder implements Serializable,
 		return TestDataPublisher.all();
 	}
 
-	private static final class ParseResultCallable implements FilePath.FileCallable<Void> {
+	private static final class ParseResultCallable implements FilePath.FileCallable<JUnitSummaryInfo> {
 		private static final long serialVersionUID = -2412534164383439939L;
 		private static final boolean checkTimestamps = true; // TODO: change to System.getProperty
 
@@ -198,16 +199,17 @@ public class SuiteGroupResultPublisher extends Recorder implements Serializable,
 			this.junitDBDir = junitDBDir;
 		}
 
-		public Void invoke(File ws, VirtualChannel channel) throws IOException, InterruptedException {
+		public JUnitSummaryInfo invoke(File ws, VirtualChannel channel) throws IOException, InterruptedException {
 			final long nowSlave = System.currentTimeMillis();
-
+			JUnitSummaryInfo summary = null;
 			FileSet fs = Util.createFileSet(ws, testResults);
 			DirectoryScanner ds = fs.getDirectoryScanner();
 			String[] includedFiles = ds.getIncludedFiles();
 			File baseDir = ds.getBasedir();
 
 			try {
-				JUnitParser junitParser = new JUnitParser(new JUnitDB(junitDBDir.getAbsolutePath()));
+				JUnitDB junitDB = new JUnitDB(junitDBDir.getAbsolutePath());
+				JUnitParser junitParser = new JUnitParser(junitDB);
 				for(String value: includedFiles) {
 					File reportFile = new File(baseDir, value);
 					// only count files that were actually updated during this build
@@ -217,6 +219,7 @@ public class SuiteGroupResultPublisher extends Recorder implements Serializable,
 						}
 					}
 				}
+				summary = junitDB.summarizeTestProjectForBuild(buildNumber, projectName);
 			}
 			catch(SAXException sAE) {
 				throw new IOException(sAE);
