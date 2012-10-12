@@ -24,6 +24,7 @@ import com.cwctravel.hudson.plugins.suitegroupedtests.SuiteGroupResultAction;
 import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitDB;
 import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitMetricsInfo;
 import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitSummaryInfo;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitTestInfo;
 
 public class SuiteGroupResult extends MetaTabulatedResult {
 	private static final long serialVersionUID = -6091389434656908226L;
@@ -323,39 +324,57 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 	}
 
 	@Override
-	public Collection<TestResult> getFailedTests() {
-		List<TestResult> result = new ArrayList<TestResult>();
-		Collection<TestResult> children = getChildren();
-		for(TestResult child: children) {
-			if(child.getFailCount() > 0) {
-				result.add(child);
+	public List<CaseResult> getFailedTests() {
+		try {
+			List<CaseResult> result = new ArrayList<CaseResult>();
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByProject(summary.getProjectName(), summary.getBuildId());
+			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
+				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_FAIL || junitTestInfo.getStatus() == JUnitTestInfo.STATUS_ERROR) {
+					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					result.add(caseResult);
+				}
 			}
+			return result;
 		}
-		return result;
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
 	}
 
 	@Override
-	public Collection<TestResult> getSkippedTests() {
-		List<TestResult> result = new ArrayList<TestResult>();
-		Collection<TestResult> children = getChildren();
-		for(TestResult child: children) {
-			if(child.getSkipCount() > 0) {
-				result.add(child);
+	public List<CaseResult> getSkippedTests() {
+		try {
+			List<CaseResult> result = new ArrayList<CaseResult>();
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByProject(summary.getProjectName(), summary.getBuildId());
+			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
+				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SKIP) {
+					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					result.add(caseResult);
+				}
 			}
+			return result;
 		}
-		return result;
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
 	}
 
 	@Override
-	public Collection<TestResult> getPassedTests() {
-		List<TestResult> result = new ArrayList<TestResult>();
-		Collection<TestResult> children = getChildren();
-		for(TestResult child: children) {
-			if(child.getSkipCount() > 0 && child.getFailCount() == 0 && child.getSkipCount() == 0) {
-				result.add(child);
+	public List<CaseResult> getPassedTests() {
+		try {
+			List<CaseResult> result = new ArrayList<CaseResult>();
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByProject(summary.getProjectName(), summary.getBuildId());
+			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
+				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SUCCESS) {
+					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					result.add(caseResult);
+				}
 			}
+			return result;
 		}
-		return result;
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
 	}
 
 	@Override

@@ -188,7 +188,7 @@ public final class TestResult extends MetaTabulatedResult {
 	@Exported(visibility = 999)
 	@Override
 	public int getFailCount() {
-		return (int)summary.getFailCount();
+		return (int)(summary.getFailCount() + summary.getErrorCount());
 	}
 
 	@Exported(visibility = 999)

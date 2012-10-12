@@ -300,27 +300,58 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 		return summary.getTotalCount() > 0;
 	}
 
-	/**
-	 * Returns a list of the failed cases, in no particular sort order
-	 * 
-	 * @return
-	 */
 	@Override
 	public List<CaseResult> getFailedTests() {
-		List<CaseResult> result = new ArrayList<CaseResult>();
 		try {
-			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByPackage(summary.getBuildId(), summary.getProjectName(), summary.getSuiteName(), summary.getPackageName());
+			List<CaseResult> result = new ArrayList<CaseResult>();
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByPackage(summary.getProjectName(), summary.getBuildId(), summary.getSuiteName(), summary.getPackageName());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_FAIL || junitTestInfo.getStatus() == JUnitTestInfo.STATUS_ERROR) {
 					CaseResult caseResult = new CaseResult(this, junitTestInfo);
 					result.add(caseResult);
 				}
 			}
+			return result;
 		}
 		catch(SQLException sE) {
 			throw new JUnitException(sE);
 		}
-		return result;
+	}
+
+	@Override
+	public List<CaseResult> getSkippedTests() {
+		try {
+			List<CaseResult> result = new ArrayList<CaseResult>();
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByPackage(summary.getProjectName(), summary.getBuildId(), summary.getSuiteName(), summary.getPackageName());
+			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
+				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SKIP) {
+					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					result.add(caseResult);
+				}
+			}
+			return result;
+		}
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
+	}
+
+	@Override
+	public List<CaseResult> getPassedTests() {
+		try {
+			List<CaseResult> result = new ArrayList<CaseResult>();
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByPackage(summary.getProjectName(), summary.getBuildId(), summary.getSuiteName(), summary.getPackageName());
+			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
+				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SUCCESS) {
+					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					result.add(caseResult);
+				}
+			}
+			return result;
+		}
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
 	}
 
 	/**
@@ -332,55 +363,6 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 		List<CaseResult> failedTests = getFailedTests();
 		Collections.sort(failedTests, CaseResult.BY_AGE);
 		return failedTests;
-	}
-
-	/**
-	 * Gets the "children" of this test result that passed
-	 * 
-	 * @return the children of this test result, if any, or an empty collection
-	 */
-	@Override
-	public Collection<? extends hudson.tasks.test.TestResult> getPassedTests() {
-		List<CaseResult> result = new ArrayList<CaseResult>();
-		try {
-			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByPackage(summary.getBuildId(), summary.getProjectName(), summary.getSuiteName(), summary.getPackageName());
-			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
-				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SUCCESS) {
-					CaseResult caseResult = new CaseResult(this, junitTestInfo);
-					result.add(caseResult);
-				}
-			}
-		}
-		catch(SQLException sE) {
-			throw new JUnitException(sE);
-		}
-		Collections.sort(result, CaseResult.BY_AGE);
-		return result;
-	}
-
-	/**
-	 * Gets the "children" of this test result that were skipped
-	 * 
-	 * @return the children of this test result, if any, or an empty list
-	 */
-	@Override
-	public Collection<? extends hudson.tasks.test.TestResult> getSkippedTests() {
-		List<CaseResult> result = new ArrayList<CaseResult>();
-		try {
-			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByPackage(summary.getBuildId(), summary.getProjectName(), summary.getSuiteName(), summary.getPackageName());
-			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
-				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SKIP) {
-					CaseResult caseResult = new CaseResult(this, junitTestInfo);
-					result.add(caseResult);
-				}
-			}
-		}
-		catch(SQLException sE) {
-			throw new JUnitException(sE);
-		}
-
-		Collections.sort(result, CaseResult.BY_AGE);
-		return result;
 	}
 
 	@Override

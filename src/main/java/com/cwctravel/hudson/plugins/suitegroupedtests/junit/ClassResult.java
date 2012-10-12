@@ -175,6 +175,60 @@ public final class ClassResult extends TabulatedResult implements Comparable<Cla
 	}
 
 	@Override
+	public List<CaseResult> getFailedTests() {
+		try {
+			List<CaseResult> result = new ArrayList<CaseResult>();
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByClass(summary.getProjectName(), summary.getBuildId(), summary.getSuiteName(), summary.getPackageName(), summary.getClassName());
+			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
+				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_FAIL || junitTestInfo.getStatus() == JUnitTestInfo.STATUS_ERROR) {
+					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					result.add(caseResult);
+				}
+			}
+			return result;
+		}
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
+	}
+
+	@Override
+	public List<CaseResult> getSkippedTests() {
+		try {
+			List<CaseResult> result = new ArrayList<CaseResult>();
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByClass(summary.getProjectName(), summary.getBuildId(), summary.getSuiteName(), summary.getPackageName(), summary.getClassName());
+			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
+				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SKIP) {
+					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					result.add(caseResult);
+				}
+			}
+			return result;
+		}
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
+	}
+
+	@Override
+	public List<CaseResult> getPassedTests() {
+		try {
+			List<CaseResult> result = new ArrayList<CaseResult>();
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByClass(summary.getProjectName(), summary.getBuildId(), summary.getSuiteName(), summary.getPackageName(), summary.getClassName());
+			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
+				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SUCCESS) {
+					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					result.add(caseResult);
+				}
+			}
+			return result;
+		}
+		catch(SQLException sE) {
+			throw new JUnitException(sE);
+		}
+	}
+
+	@Override
 	@Exported(name = "child")
 	public List<CaseResult> getChildren() {
 		List<CaseResult> result = new ArrayList<CaseResult>();
