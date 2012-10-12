@@ -169,7 +169,7 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	}
 
 	public String getFullName() {
-		return getClassName() + '.' + getName();
+		return testInfo.getSuiteName() + '.' + testInfo.getPackageName() + '.' + testInfo.getClassName() + '.' + testInfo.getCaseName();
 	}
 
 	@Override

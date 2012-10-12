@@ -307,7 +307,8 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByPackage(summary.getProjectName(), summary.getBuildId(), summary.getSuiteName(), summary.getPackageName());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_FAIL || junitTestInfo.getStatus() == JUnitTestInfo.STATUS_ERROR) {
-					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					ClassResult classResult = new ClassResult(this, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_CLASS, junitDB, junitTestInfo));
+					CaseResult caseResult = new CaseResult(classResult, junitTestInfo);
 					result.add(caseResult);
 				}
 			}
@@ -325,7 +326,8 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByPackage(summary.getProjectName(), summary.getBuildId(), summary.getSuiteName(), summary.getPackageName());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SKIP) {
-					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					ClassResult classResult = new ClassResult(this, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_CLASS, junitDB, junitTestInfo));
+					CaseResult caseResult = new CaseResult(classResult, junitTestInfo);
 					result.add(caseResult);
 				}
 			}
@@ -343,7 +345,8 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByPackage(summary.getProjectName(), summary.getBuildId(), summary.getSuiteName(), summary.getPackageName());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SUCCESS) {
-					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					ClassResult classResult = new ClassResult(this, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_CLASS, junitDB, junitTestInfo));
+					CaseResult caseResult = new CaseResult(classResult, junitTestInfo);
 					result.add(caseResult);
 				}
 			}

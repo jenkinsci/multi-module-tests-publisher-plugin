@@ -330,7 +330,10 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByProject(summary.getProjectName(), summary.getBuildId());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_FAIL || junitTestInfo.getStatus() == JUnitTestInfo.STATUS_ERROR) {
-					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					TestResult testResult = new TestResult(this, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_SUITE, junitDB, junitTestInfo));
+					PackageResult packageResult = new PackageResult(testResult, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_PACKAGE, junitDB, junitTestInfo));
+					ClassResult classResult = new ClassResult(packageResult, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_CLASS, junitDB, junitTestInfo));
+					CaseResult caseResult = new CaseResult(classResult, junitTestInfo);
 					result.add(caseResult);
 				}
 			}
@@ -348,7 +351,10 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByProject(summary.getProjectName(), summary.getBuildId());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SKIP) {
-					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					TestResult testResult = new TestResult(this, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_SUITE, junitDB, junitTestInfo));
+					PackageResult packageResult = new PackageResult(testResult, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_PACKAGE, junitDB, junitTestInfo));
+					ClassResult classResult = new ClassResult(packageResult, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_CLASS, junitDB, junitTestInfo));
+					CaseResult caseResult = new CaseResult(classResult, junitTestInfo);
 					result.add(caseResult);
 				}
 			}
@@ -366,7 +372,10 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByProject(summary.getProjectName(), summary.getBuildId());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SUCCESS) {
-					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					TestResult testResult = new TestResult(this, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_SUITE, junitDB, junitTestInfo));
+					PackageResult packageResult = new PackageResult(testResult, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_PACKAGE, junitDB, junitTestInfo));
+					ClassResult classResult = new ClassResult(packageResult, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_CLASS, junitDB, junitTestInfo));
+					CaseResult caseResult = new CaseResult(classResult, junitTestInfo);
 					result.add(caseResult);
 				}
 			}

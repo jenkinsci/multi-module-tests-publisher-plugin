@@ -276,7 +276,9 @@ public final class TestResult extends MetaTabulatedResult {
 			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsBySuite(summary.getProjectName(), summary.getBuildId(), summary.getSuiteName());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_FAIL || junitTestInfo.getStatus() == JUnitTestInfo.STATUS_ERROR) {
-					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					PackageResult packageResult = new PackageResult(this, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_PACKAGE, junitDB, junitTestInfo));
+					ClassResult classResult = new ClassResult(packageResult, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_CLASS, junitDB, junitTestInfo));
+					CaseResult caseResult = new CaseResult(classResult, junitTestInfo);
 					result.add(caseResult);
 				}
 			}
@@ -299,7 +301,9 @@ public final class TestResult extends MetaTabulatedResult {
 			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsBySuite(summary.getProjectName(), summary.getBuildId(), summary.getSuiteName());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SUCCESS) {
-					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					PackageResult packageResult = new PackageResult(this, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_PACKAGE, junitDB, junitTestInfo));
+					ClassResult classResult = new ClassResult(packageResult, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_CLASS, junitDB, junitTestInfo));
+					CaseResult caseResult = new CaseResult(classResult, junitTestInfo);
 					result.add(caseResult);
 				}
 			}
@@ -322,7 +326,9 @@ public final class TestResult extends MetaTabulatedResult {
 			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsBySuite(summary.getProjectName(), summary.getBuildId(), summary.getSuiteName());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SKIP) {
-					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					PackageResult packageResult = new PackageResult(this, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_PACKAGE, junitDB, junitTestInfo));
+					ClassResult classResult = new ClassResult(packageResult, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_CLASS, junitDB, junitTestInfo));
+					CaseResult caseResult = new CaseResult(classResult, junitTestInfo);
 					result.add(caseResult);
 				}
 			}
