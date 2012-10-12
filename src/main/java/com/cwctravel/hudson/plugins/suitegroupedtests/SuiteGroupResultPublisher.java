@@ -231,7 +231,7 @@ public class SuiteGroupResultPublisher extends Recorder implements Serializable,
 				throw new IOException(sE);
 			}
 
-			return null;
+			return summary;
 		}
 	}
 
