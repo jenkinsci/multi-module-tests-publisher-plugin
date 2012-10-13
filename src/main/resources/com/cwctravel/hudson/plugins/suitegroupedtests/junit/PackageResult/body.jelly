@@ -123,9 +123,9 @@ THE SOFTWARE.
             <td class="pane" style="text-align:right">
               ${h.getDiffString2(p.totalCount-prev.totalCount)}
             </td>
-            <td class="pane" style="text-align:right">${p.metrics.successRate}%</td>
-            <td class="pane" style="text-align:right">${p.metrics.failureRate}%</td>
-            <td class="pane" style="text-align:right">${p.metrics.skipRate}%</td>            
+            <td class="pane" style="text-align:right" data="${p.metrics.successRate}">${p.metrics.successRate}%</td>
+            <td class="pane" style="text-align:right" data="${p.metrics.failureRate}">${p.metrics.failureRate}%</td>
+            <td class="pane" style="text-align:right" data="${p.metrics.skipRate}">${p.metrics.skipRate}%</td>            
           </tr>
         </j:forEach>
       </tbody>

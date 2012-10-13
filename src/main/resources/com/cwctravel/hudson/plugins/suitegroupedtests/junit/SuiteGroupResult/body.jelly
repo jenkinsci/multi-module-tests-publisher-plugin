@@ -91,10 +91,9 @@ THE SOFTWARE.
                     <td class="pane" style="text-align:right">${h.getDiffString2(it.skipDiff)}</td>
                     <td class="pane" style="text-align:right">${it.totalCount}</td>
                     <td class="pane" style="text-align:right">${h.getDiffString2(it.totalDiff)}</td>
-	                <td class="pane" style="text-align:right">${it.metrics.successRate}%</td>
-	                <td class="pane" style="text-align:right">${it.metrics.failureRate}%</td>
-	                <td class="pane" style="text-align:right">${it.metrics.skipRate}%</td>
-                    
+	                <td class="pane" style="text-align:right" data="${it.metrics.successRate}">${it.metrics.successRate}%</td>
+	                <td class="pane" style="text-align:right" data="${it.metrics.failureRate}>${it.metrics.failureRate}%</td>
+	                <td class="pane" style="text-align:right" data="${it.metrics.skipRate}>${it.metrics.skipRate}%</td>		                             
                 </tr>
             </tbody>
         </table>
