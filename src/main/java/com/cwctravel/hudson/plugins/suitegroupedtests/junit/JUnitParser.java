@@ -371,14 +371,13 @@ public class JUnitParser implements ContentHandler {
 				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
 			}
 		}
-		else {
-			junitTestCases.add(junitTestInfo);
-			if(stdout != null) {
-				readerWriters.add(stdout);
-			}
-			if(stderr != null) {
-				readerWriters.add(stderr);
-			}
+
+		junitTestCases.add(junitTestInfo);
+		if(stdout != null) {
+			readerWriters.add(stdout);
+		}
+		if(stderr != null) {
+			readerWriters.add(stderr);
 		}
 
 	}
