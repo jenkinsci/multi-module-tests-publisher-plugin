@@ -19,7 +19,7 @@
 
 
   <artifactId>suite-test-groups-publisher</artifactId>
-  <version>1.13-SNAPSHOT</version>
+  <version>1.13</version>
   <packaging>hpi</packaging>
   
   <distributionManagement>
