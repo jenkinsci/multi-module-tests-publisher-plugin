@@ -114,11 +114,13 @@ public class SuiteGroupResultPublisher extends Recorder implements Serializable,
 		final long nowMaster = System.currentTimeMillis();
 
 		File junitDBDir = build.getProject().getRootDir();
-		JUnitSummaryInfo summary = build.getWorkspace().act(new ParseResultCallable(junitDBDir, build.getId(), build.getNumber(), build.getProject().getName(), config.getTestResultFileMask(), buildTime, nowMaster, config.isKeepLongStdio()));
+		String testResultFileMask = Util.replaceMacro(config.getTestResultFileMask(), build.getBuildVariableResolver());
+		String moduleNames = Util.replaceMacro(config.getModuleNames(), build.getBuildVariableResolver());
+		JUnitSummaryInfo summary = build.getWorkspace().act(new ParseResultCallable(junitDBDir, build.getId(), build.getNumber(), build.getProject().getName(), testResultFileMask, buildTime, nowMaster, config.isKeepLongStdio()));
 
 		if(summary != null) {
-			SuiteGroupResult suiteGroupResult = new SuiteGroupResult(build, summary, "(no description)");
-			SuiteGroupResultAction action = new SuiteGroupResultAction(build, suiteGroupResult, listener);
+			SuiteGroupResultAction action = new SuiteGroupResultAction(build, summary, moduleNames, listener);
+			SuiteGroupResult suiteGroupResult = action.getResult();
 			build.addAction(action);
 
 			List<Data> data = new ArrayList<Data>();
@@ -130,6 +132,7 @@ public class SuiteGroupResultPublisher extends Recorder implements Serializable,
 					}
 				}
 			}
+
 			action.setData(data);
 
 			Result healthResult = determineBuildHealth(build, suiteGroupResult);
@@ -219,7 +222,7 @@ public class SuiteGroupResultPublisher extends Recorder implements Serializable,
 						}
 					}
 				}
-				summary = junitDB.summarizeTestProjectForBuild(buildNumber, projectName);
+				summary = junitDB.summarizeTestProjectForBuildNoLaterThan(buildNumber, projectName);
 			}
 			catch(SAXException sAE) {
 				throw new IOException(sAE);

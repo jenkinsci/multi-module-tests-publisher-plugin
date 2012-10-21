@@ -30,11 +30,11 @@ THE SOFTWARE.
             <table width="100%">
                 <tr>
                     <td style="width: 10em">
-                        <h2><a href="${suiteName}">${suiteName}</a></h2>
+                        <h2><a href="${suiteName}">${theGroup.displayName}</a></h2>
                     </td>
                     <!-- Display a bar -->
                     <td>
-                        <j:set var="prev" value="${it.getGroupBySuiteName(suiteName).previousResult}" />
+                        <j:set var="prev" value="${theGroup.previousResult}" />
                         <j:set var="oldit" value="${it}" />
                         <j:set var="it" value="${theGroup}" />
                         <test:bar />
@@ -45,7 +45,7 @@ THE SOFTWARE.
         </j:forEach>
 
 
-        <h2>Result Breakdown by Group</h2>
+        <h2>Result Breakdown by Module</h2>
         <table class="pane sortable" id="testresult">
             <tbody>
                 <tr>
@@ -66,7 +66,7 @@ THE SOFTWARE.
                 <j:forEach var="suiteName" items="${it.suiteNames}">
                     <j:set var="theGroup" value="${it.getGroupBySuiteName(suiteName)}"></j:set>
                     <tr>
-                        <td class="pane" style="text-align:right"><a href="${suiteName}">${suiteName}</a></td>
+                        <td class="pane" style="text-align:right"><a href="${suiteName}">${theGroup.displayName}</a></td>
                         <td class="pane" style="text-align:right">${theGroup.passCount}</td>
                         <td class="pane" style="text-align:right">${h.getDiffString2(theGroup.passDiff)}</td>
                         <td class="pane result-failed" style="text-align:right">${theGroup.failCount}</td>

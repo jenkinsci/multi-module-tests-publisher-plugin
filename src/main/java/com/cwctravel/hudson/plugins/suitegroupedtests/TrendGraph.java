@@ -56,12 +56,14 @@ public class TrendGraph extends Graph {
 
 	protected final java.util.List<JUnitSummaryInfo> historyList;
 	private final String yLabel;
-	private final String relativeUrl;
+	private final String prefixUrl;
+	private final String suffixUrl;
 	private boolean failureOnly;
 
-	protected TrendGraph(String relativeUrl, String yLabel, java.util.List<JUnitSummaryInfo> historyList) {
+	protected TrendGraph(String prefixUrl, String suffixUrl, String yLabel, java.util.List<JUnitSummaryInfo> historyList) {
 		super(-1 /* timestamp */, 500, 200); // TODO: use a good timestamp, so we can take advantage of caching
-		this.relativeUrl = relativeUrl;
+		this.prefixUrl = prefixUrl;
+		this.suffixUrl = suffixUrl;
 		this.yLabel = yLabel;
 		this.historyList = historyList;
 		this.failureOnly = false;
@@ -154,7 +156,7 @@ public class TrendGraph extends Graph {
 			@Override
 			public String generateURL(CategoryDataset dataset, int row, int column) {
 				ChartLabel label = (ChartLabel)dataset.getColumnKey(column);
-				return label.getURL() + relativeUrl;
+				return prefixUrl + label.getURL() + suffixUrl;
 			}
 
 			@Override

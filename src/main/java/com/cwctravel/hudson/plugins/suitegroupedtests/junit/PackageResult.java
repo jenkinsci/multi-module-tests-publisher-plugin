@@ -146,7 +146,7 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 
 	@Override
 	public String getTitle() {
-		return Messages.PackageResult_getTitle(getParent().getName(), getName());
+		return Messages.PackageResult_getTitle(getParent().getDisplayName(), getName());
 	}
 
 	@Override

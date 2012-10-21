@@ -354,6 +354,23 @@ public class JUnitDB {
 				   "SUM(DURATION) DURATION " +
 				   "FROM JUNIT_TESTS WHERE BUILD_NUMBER < ? AND PROJECT_NAME= ? AND SUITE_NAME = ? GROUP BY BUILD_NUMBER, PROJECT_NAME, SUITE_NAME  ORDER BY BUILD_NUMBER DESC FETCH FIRST ROW ONLY";	
 	
+	private static final String JUNIT_TESTS_SUMMARIZE_TEST_SUITE_FOR_BUILD_NO_LATER_THAN_QUERY =			
+			"SELECT MIN(BUILD_ID) BUILD_ID, " +
+				   "BUILD_NUMBER, " +
+				   "PROJECT_NAME, " +
+				   "SUITE_NAME, " +
+				   "'' PACKAGE_NAME, " +	
+				   "'' CLASS_NAME, " +		
+				   "'' CASE_NAME, " +
+				   "COUNT(*) TOTAL_COUNT, " +
+				   "SUM((CASE WHEN STATUS = 0 THEN 1 ELSE 0 END)) PASS_COUNT, " +
+				   "SUM((CASE WHEN STATUS = 1 THEN 1 ELSE 0 END)) FAIL_COUNT, " +
+				   "SUM((CASE WHEN STATUS = 2 THEN 1 ELSE 0 END)) ERROR_COUNT, " +
+				   "SUM((CASE WHEN STATUS = 3 THEN 1 ELSE 0 END)) SKIP_COUNT, " +
+				   "MIN(START_TIME) START_TIME, " +
+				   "SUM(DURATION) DURATION " +
+				   "FROM JUNIT_TESTS WHERE BUILD_NUMBER <= ? AND PROJECT_NAME= ? AND SUITE_NAME = ? GROUP BY BUILD_NUMBER, PROJECT_NAME, SUITE_NAME  ORDER BY BUILD_NUMBER DESC FETCH FIRST ROW ONLY";	
+	
 	private static final String JUNIT_TESTS_SUMMARIZE_TEST_PROJECT_HISTORY_QUERY =			
 			"SELECT MIN(BUILD_ID) BUILD_ID, " +
 				   "BUILD_NUMBER, " +
@@ -431,6 +448,23 @@ public class JUnitDB {
 			   "MIN(START_TIME) START_TIME, " +
 			   "SUM(DURATION) DURATION " +
 			   "FROM JUNIT_TESTS WHERE BUILD_NUMBER < ? AND PROJECT_NAME= ? GROUP BY BUILD_NUMBER, PROJECT_NAME ORDER BY BUILD_NUMBER DESC FETCH FIRST ROW ONLY";	
+	
+	private static final String JUNIT_TESTS_SUMMARIZE_TEST_PROJECT_FOR_BUILD_NO_LATER_THAN_QUERY = 	
+			"SELECT MIN(BUILD_ID) BUILD_ID, " +
+			   "BUILD_NUMBER, " +
+			   "PROJECT_NAME, " +
+			   "'' SUITE_NAME, " +
+			   "'' PACKAGE_NAME, " +	
+			   "'' CLASS_NAME, " +		
+			   "'' CASE_NAME, " +
+			   "COUNT(*) TOTAL_COUNT, " +
+			   "SUM((CASE WHEN STATUS = 0 THEN 1 ELSE 0 END)) PASS_COUNT, " +
+			   "SUM((CASE WHEN STATUS = 1 THEN 1 ELSE 0 END)) FAIL_COUNT, " +
+			   "SUM((CASE WHEN STATUS = 2 THEN 1 ELSE 0 END)) ERROR_COUNT, " +
+			   "SUM((CASE WHEN STATUS = 3 THEN 1 ELSE 0 END)) SKIP_COUNT, " +
+			   "MIN(START_TIME) START_TIME, " +
+			   "SUM(DURATION) DURATION " +
+			   "FROM JUNIT_TESTS WHERE BUILD_NUMBER <= ? AND PROJECT_NAME= ? GROUP BY BUILD_NUMBER, PROJECT_NAME ORDER BY BUILD_NUMBER DESC FETCH FIRST ROW ONLY";	
 	
 	private static final String JUNIT_TESTS_TABLE_CREATE_QUERY = "CREATE TABLE " +
 																				"JUNIT_TESTS(ID BIGINT GENERATED ALWAYS AS IDENTITY(START WITH 100, INCREMENT BY 1), " +
@@ -1427,6 +1461,39 @@ public class JUnitDB {
 		return result;
 	}
 
+	public JUnitSummaryInfo summarizeTestSuiteForBuildNoLaterThan(int buildNumber, String projectName, String suiteName) throws SQLException {
+		JUnitSummaryInfo result = null;
+		Connection connection = getConnection();
+		try {
+			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_SUMMARIZE_TEST_SUITE_FOR_BUILD_NO_LATER_THAN_QUERY);
+			try {
+				pS.setInt(1, buildNumber);
+				pS.setString(2, projectName);
+				pS.setString(3, suiteName);
+
+				ResultSet rS = pS.executeQuery();
+				try {
+					List<JUnitSummaryInfo> junitSummaryInfoList = readSummary(rS, 1);
+					if(!junitSummaryInfoList.isEmpty()) {
+						result = junitSummaryInfoList.get(0);
+					}
+				}
+				finally {
+					rS.close();
+				}
+			}
+			finally {
+				pS.close();
+			}
+			connection.commit();
+		}
+		finally {
+			connection.rollback();
+			connection.close();
+		}
+		return result;
+	}
+
 	public List<JUnitSummaryInfo> summarizeTestProjectHistory(String projectName, int limit) throws SQLException {
 		List<JUnitSummaryInfo> result = new ArrayList<JUnitSummaryInfo>();
 		Connection connection = getConnection();
@@ -1521,6 +1588,38 @@ public class JUnitDB {
 		Connection connection = getConnection();
 		try {
 			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_SUMMARIZE_TEST_PROJECT_FOR_BUILD_PRIOR_TO_QUERY);
+			try {
+				pS.setInt(1, buildNumber);
+				pS.setString(2, projectName);
+
+				ResultSet rS = pS.executeQuery();
+				try {
+					List<JUnitSummaryInfo> junitSummaryInfoList = readSummary(rS, 1);
+					if(!junitSummaryInfoList.isEmpty()) {
+						result = junitSummaryInfoList.get(0);
+					}
+				}
+				finally {
+					rS.close();
+				}
+			}
+			finally {
+				pS.close();
+			}
+			connection.commit();
+		}
+		finally {
+			connection.rollback();
+			connection.close();
+		}
+		return result;
+	}
+
+	public JUnitSummaryInfo summarizeTestProjectForBuildNoLaterThan(int buildNumber, String projectName) throws SQLException {
+		JUnitSummaryInfo result = null;
+		Connection connection = getConnection();
+		try {
+			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_SUMMARIZE_TEST_PROJECT_FOR_BUILD_NO_LATER_THAN_QUERY);
 			try {
 				pS.setInt(1, buildNumber);
 				pS.setString(2, projectName);

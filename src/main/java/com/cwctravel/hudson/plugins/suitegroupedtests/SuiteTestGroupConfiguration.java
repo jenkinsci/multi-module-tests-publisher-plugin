@@ -5,11 +5,13 @@ import org.kohsuke.stapler.DataBoundConstructor;
 public class SuiteTestGroupConfiguration {
 	private boolean keepLongStdio;
 	private String testResultFileMask;
+	private final String moduleNames;
 
 	@DataBoundConstructor
-	public SuiteTestGroupConfiguration(boolean keepLongStdio, String testResultFileMask) {
+	public SuiteTestGroupConfiguration(boolean keepLongStdio, String testResultFileMask, String moduleNames) {
 		this.keepLongStdio = keepLongStdio;
 		this.testResultFileMask = testResultFileMask;
+		this.moduleNames = moduleNames;
 	}
 
 	public String getTestResultFileMask() {
@@ -28,4 +30,7 @@ public class SuiteTestGroupConfiguration {
 		this.keepLongStdio = keepLongStdio;
 	}
 
+	public String getModuleNames() {
+		return moduleNames;
+	}
 }

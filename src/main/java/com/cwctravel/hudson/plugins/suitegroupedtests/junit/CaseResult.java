@@ -206,10 +206,13 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 				List<JUnitSummaryInfo> history = junitDB.summarizeTestCaseHistory(testInfo.getProjectName(), testInfo.getSuiteName(), testInfo.getPackageName(), testInfo.getClassName(), testInfo.getCaseName(), 5000);
 				for(JUnitSummaryInfo junitSummaryInfo: history) {
 					int failedBuildNumber = junitSummaryInfo.getBuildNumber();
-					if(failedBuildNumber < getOwner().getNumber() && junitSummaryInfo.getFailCount() > 0) {
+					if(failedBuildNumber < testInfo.getBuildNumber() && (junitSummaryInfo.getFailCount() > 0 || junitSummaryInfo.getErrorCount() > 0)) {
 						failedSince = failedBuildNumber;
 						break;
 					}
+				}
+				if(failedSince == 0) {
+					failedSince = testInfo.getBuildNumber();
 				}
 			}
 			catch(SQLException sE) {
@@ -229,14 +232,11 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	 */
 	@Exported(visibility = 9)
 	public int getAge() {
-		if(isPassed())
+		if(isPassed()) {
 			return 0;
-		else if(getOwner() != null) {
-			return getOwner().getNumber() - getFailedSince() + 1;
 		}
 		else {
-			LOGGER.fine("Trying to get age of a CaseResult without an owner");
-			return 0;
+			return testInfo.getBuildNumber() - getFailedSince() + 1;
 		}
 	}
 

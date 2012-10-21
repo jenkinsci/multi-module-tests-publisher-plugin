@@ -12,7 +12,11 @@ import hudson.tasks.test.TestObject;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -37,6 +41,8 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 
 	private SuiteGroupResultAction parentAction;
 
+	private List<String> moduleNames;
+
 	private JUnitDB junitDB;
 
 	private JUnitSummaryInfo summary;
@@ -44,8 +50,8 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 
 	private JUnitMetricsInfo metrics;
 
-	/** Effectively overrides TestObject.id, by overriding the accessors */
-	protected String groupId = "";
+	private transient Map<String, TestResult> testResultMap;
+	private transient Set<String> emptyTestResults;
 
 	/**
 	 * Allow the object to rebuild its internal data structures when it is deserialized.
@@ -56,16 +62,26 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 
 	public SuiteGroupResult() {}
 
-	public SuiteGroupResult(AbstractBuild<?, ?> build, JUnitSummaryInfo summary, String description) {
+	public SuiteGroupResult(AbstractProject<?, ?> project, JUnitSummaryInfo summary, String moduleNamesStr, String description) {
 		this.description = description;
 		try {
-			AbstractProject<?, ?> project = build.getProject();
 			this.junitDB = new JUnitDB(project.getRootDir().getAbsolutePath());
 			this.summary = summary;
+			moduleNames = new ArrayList<String>();
+			if(moduleNamesStr != null) {
+				String[] moduleNamesArray = moduleNamesStr.split(",");
+				for(String moduleName: moduleNamesArray) {
+					moduleNames.add(moduleName);
+				}
+			}
 		}
 		catch(SQLException sE) {
 			throw new JUnitException(sE);
 		}
+	}
+
+	public SuiteGroupResult(AbstractBuild<?, ?> build, JUnitSummaryInfo summary, String moduleNamesStr, String description) {
+		this(build.getProject(), summary, moduleNamesStr, description);
 	}
 
 	/**
@@ -75,9 +91,8 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 	 */
 	public Collection<String> getSuiteNames() {
 		List<String> result = new ArrayList<String>();
-		Collection<TestResult> children = getChildren();
-		for(TestResult child: children) {
-			result.add(child.getName());
+		for(TestResult testResult: getChildren()) {
+			result.add(testResult.getName());
 		}
 		return result;
 	}
@@ -88,17 +103,42 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 	}
 
 	public TestResult getGroupBySuiteName(String suiteName) {
-		TestResult result = null;
-		try {
-			JUnitSummaryInfo junitSummaryInfo = junitDB.summarizeTestSuiteForBuild(summary.getBuildNumber(), summary.getProjectName(), suiteName);
-			if(junitSummaryInfo != null) {
-				result = new TestResult(this, junitSummaryInfo);
+		TestResult result = getTestResultFromCache(suiteName);
+		if(result == null) {
+			try {
+				JUnitSummaryInfo junitSummaryInfo = junitDB.summarizeTestSuiteForBuildNoLaterThan(summary.getBuildNumber(), summary.getProjectName(), suiteName);
+
+				if(junitSummaryInfo != null) {
+					result = new TestResult(this, junitSummaryInfo);
+					cacheTestResult(suiteName, result);
+				}
+			}
+			catch(SQLException sE) {
+				throw new JUnitException(sE);
 			}
 		}
-		catch(SQLException sE) {
-			throw new JUnitException(sE);
-		}
 		return result;
+	}
+
+	private boolean isTestResultEmpty(String suiteName) {
+		if(emptyTestResults != null && emptyTestResults.contains(suiteName)) {
+			return true;
+		}
+		return false;
+	}
+
+	private TestResult getTestResultFromCache(String suiteName) {
+		if(testResultMap != null) {
+			return testResultMap.get(suiteName);
+		}
+		return null;
+	}
+
+	private void cacheTestResult(String suiteName, TestResult testResult) {
+		if(testResultMap == null) {
+			testResultMap = new HashMap<String, TestResult>();
+		}
+		testResultMap.put(suiteName, testResult);
 	}
 
 	@Override
@@ -391,16 +431,37 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 		AbstractBuild<?, ?> build = getOwner();
 		List<TestResult> result = new ArrayList<TestResult>();
 		try {
-			List<JUnitSummaryInfo> junitSummaryInfoList = junitDB.fetchTestProjectChildrenForBuild(build.getNumber(), build.getProject().getName());
-			for(JUnitSummaryInfo junitSummaryInfo: junitSummaryInfoList) {
-				TestResult testResult = new TestResult(this, junitSummaryInfo);
-				result.add(testResult);
+			for(String moduleName: moduleNames) {
+				TestResult testResult = getTestResultFromCache(moduleName);
+				if(testResult == null && !isTestResultEmpty(moduleName)) {
+					JUnitSummaryInfo junitSummaryInfo = junitDB.summarizeTestSuiteForBuildNoLaterThan(build.getNumber(), build.getProject().getName(), moduleName);
+
+					if(junitSummaryInfo != null) {
+						testResult = new TestResult(this, junitSummaryInfo);
+						cacheTestResult(moduleName, testResult);
+					}
+					else {
+						addEmptyTestResult(moduleName);
+					}
+				}
+
+				if(testResult != null) {
+					result.add(testResult);
+				}
 			}
 		}
 		catch(SQLException sE) {
 			throw new JUnitException(sE);
 		}
 		return result;
+	}
+
+	private void addEmptyTestResult(String suiteName) {
+		if(emptyTestResults == null) {
+			emptyTestResults = new HashSet<String>();
+		}
+		emptyTestResults.add(suiteName);
+
 	}
 
 	@Override
@@ -436,7 +497,7 @@ public class SuiteGroupResult extends MetaTabulatedResult {
 	@Exported(visibility = 99)
 	/* @Override */
 	public String getDisplayName() {
-		return "Test Result Groups";
+		return "Modules" + "(#" + summary.getBuildNumber() + ")";
 	}
 
 	@Exported(visibility = 99)

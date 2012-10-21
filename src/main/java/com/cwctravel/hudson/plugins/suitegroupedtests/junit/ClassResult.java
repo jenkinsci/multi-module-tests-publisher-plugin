@@ -125,7 +125,7 @@ public final class ClassResult extends TabulatedResult implements Comparable<Cla
 
 	@Override
 	public String getTitle() {
-		return Messages.ClassResult_getTitle(getParent().getParent().getName(), getParent().getName(), getName());
+		return Messages.ClassResult_getTitle(getParent().getParent().getDisplayName(), getParent().getName(), getName());
 	}
 
 	@Override

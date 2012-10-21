@@ -6,9 +6,11 @@ import hudson.tasks.junit.TestAction;
 import hudson.tasks.test.AbstractTestResultAction;
 import hudson.tasks.test.TestObject;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.kohsuke.stapler.Stapler;
@@ -16,6 +18,8 @@ import org.kohsuke.stapler.StaplerProxy;
 
 import com.cwctravel.hudson.plugins.suitegroupedtests.junit.SuiteGroupResult;
 import com.cwctravel.hudson.plugins.suitegroupedtests.junit.TestResult;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitDB;
+import com.cwctravel.hudson.plugins.suitegroupedtests.junit.db.JUnitSummaryInfo;
 
 public class SuiteGroupResultAction extends AbstractTestResultAction<SuiteGroupResultAction> implements StaplerProxy {
 	private static final Logger LOGGER = Logger.getLogger(SuiteGroupResultAction.class.getName());
@@ -29,33 +33,18 @@ public class SuiteGroupResultAction extends AbstractTestResultAction<SuiteGroupR
 		public abstract List<? extends TestAction> getTestAction(TestObject testObject);
 	}
 
-	private int failCount;
-	private int skipCount;
-	private Integer totalCount; // TODO: can we make this just a normal int, and find another way to check
-	// whether we're populated yet? (This technique is borrowed from hudson core TestResultAction.)
 	private List<Data> testData = new ArrayList<Data>();
 
 	/**
 	 * Store the result group itself in a separate file so we don't eat up too much memory.
 	 */
-	private SuiteGroupResult suiteGroupResult;
+	private JUnitSummaryInfo summary;
+	private final String moduleNames;
 
-	public SuiteGroupResultAction(AbstractBuild<?, ?> owner, SuiteGroupResult r, BuildListener listener) {
+	public SuiteGroupResultAction(AbstractBuild<?, ?> owner, JUnitSummaryInfo summary, String moduleNames, BuildListener listener) {
 		super(owner);
-		setResult(r, listener);
-	}
-
-	/**
-	 * Store the data to a separate file, and update our cached values.
-	 */
-	public synchronized void setResult(SuiteGroupResult r, BuildListener listener) {
-		r.setParentAction(this);
-
-		totalCount = r.getTotalCount();
-		failCount = r.getFailCount();
-		skipCount = r.getSkipCount();
-
-		this.suiteGroupResult = r;
+		this.summary = summary;
+		this.moduleNames = moduleNames;
 	}
 
 	public Object getTarget() {
@@ -67,9 +56,7 @@ public class SuiteGroupResultAction extends AbstractTestResultAction<SuiteGroupR
 	 */
 	@Override
 	public int getFailCount() {
-		if(totalCount == null)
-			getResult(); // this will load the result from disk if necessary
-		return failCount;
+		return (int)getSummary().getFailCount();
 	}
 
 	/**
@@ -79,9 +66,7 @@ public class SuiteGroupResultAction extends AbstractTestResultAction<SuiteGroupR
 	 */
 	@Override
 	public int getSkipCount() {
-		if(totalCount == null)
-			getResult(); // this will load the result from disk if necessary
-		return skipCount;
+		return (int)getSummary().getSkipCount();
 	}
 
 	/**
@@ -89,9 +74,7 @@ public class SuiteGroupResultAction extends AbstractTestResultAction<SuiteGroupR
 	 */
 	@Override
 	public int getTotalCount() {
-		if(totalCount == null)
-			getResult(); // this will load the result from disk if necessary
-		return totalCount;
+		return (int)getSummary().getTotalCount();
 	}
 
 	public List<TestAction> getActions(TestObject object) {
@@ -110,18 +93,30 @@ public class SuiteGroupResultAction extends AbstractTestResultAction<SuiteGroupR
 		this.testData = testData;
 	}
 
+	private JUnitSummaryInfo getSummary() {
+		if(summary == null) {
+			JUnitDB junitDB;
+			try {
+				junitDB = new JUnitDB(owner.getProject().getRootDir().getAbsolutePath());
+				summary = junitDB.summarizeTestProjectForBuildNoLaterThan(owner.getNumber(), owner.getProject().getName());
+			}
+			catch(SQLException e) {
+				LOGGER.log(Level.SEVERE, e.getMessage(), e);
+			}
+
+		}
+		return summary;
+	}
+
 	/**
 	 * Get the result that this action represents. If necessary, the result will be loaded from disk.
 	 * 
 	 * @return
 	 */
 	@Override
-	public synchronized SuiteGroupResult getResult() {
-		if(totalCount == null) {
-			totalCount = suiteGroupResult.getTotalCount();
-			failCount = suiteGroupResult.getFailCount();
-			skipCount = suiteGroupResult.getSkipCount();
-		}
+	public SuiteGroupResult getResult() {
+		SuiteGroupResult suiteGroupResult = new SuiteGroupResult(owner, getSummary(), moduleNames, "(no description)");
+		suiteGroupResult.setParentAction(this);
 		return suiteGroupResult;
 	}
 
@@ -157,6 +152,10 @@ public class SuiteGroupResultAction extends AbstractTestResultAction<SuiteGroupR
 		String testObjectUrl = testObject.getUrl();
 		String result = Stapler.getCurrentRequest().getContextPath() + (buildUrl.startsWith("/") ? "" : "/") + buildUrl + getUrlName() + (testObjectUrl.startsWith("/") ? "" : "/") + testObjectUrl + (testObjectUrl.endsWith("/") ? "" : "/") + urlName;
 		return result;
+	}
+
+	public String getModuleNames() {
+		return moduleNames;
 	}
 
 	/**

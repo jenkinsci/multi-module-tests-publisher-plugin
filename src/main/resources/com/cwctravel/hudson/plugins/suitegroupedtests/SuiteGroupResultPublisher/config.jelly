@@ -28,6 +28,10 @@ THE SOFTWARE.
 			    <f:entry title="JUnit Report File Mask">
 			        <f:textbox name="testResultFileMask" value="${instance.config.testResultFileMask}" ></f:textbox>
 			    </f:entry>
+			    <f:entry title="Module Names">
+			        <f:textbox name="moduleNames" value="${instance.config.moduleNames}" ></f:textbox>
+			    </f:entry>
+			    
 			    <f:entry field="keepLongStdio" title="">
 					<f:checkbox name="keepLongStdio" checked="${instance.config.keepLongStdio}" title="${%Retain long standard output/error}"/>
 				</f:entry>

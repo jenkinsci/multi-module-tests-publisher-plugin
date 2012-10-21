@@ -99,7 +99,7 @@ public final class TestResult extends MetaTabulatedResult {
 	}
 
 	public String getDisplayName() {
-		return summary.getSuiteName();
+		return summary.getSuiteName() + "(#" + summary.getBuildNumber() + ")";
 	}
 
 	@Override
@@ -165,7 +165,7 @@ public final class TestResult extends MetaTabulatedResult {
 
 	@Override
 	public String getTitle() {
-		return Messages.TestResult_getTitle(getName());
+		return Messages.TestResult_getTitle(getDisplayName());
 	}
 
 	@Override
