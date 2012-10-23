@@ -2,5 +2,5 @@
   This view is used to render the installed plugins page.
 -->
 <div>
-	Allows test results to be grouped by suite name 
+	Allows test results to be grouped by module 
 </div>

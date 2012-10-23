@@ -1,0 +1,101 @@
+<!--
+The MIT License
+
+Copyright (c) 2010, Yahoo!, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:test="/lib/test">
+
+    <j:if test="${it.totalCount!=0}">
+        <j:forEach var="moduleName" items="${it.moduleNames}">
+            <j:set var="theGroup" value="${it.getModuleResultByName(moduleName)}"></j:set>
+            <table width="100%">
+                <tr>
+                    <td style="width: 10em">
+                        <h2><a href="${moduleName}">${theGroup.displayName}</a></h2>
+                    </td>
+                    <!-- Display a bar -->
+                    <td>
+                        <j:set var="prev" value="${theGroup.previousResult}" />
+                        <j:set var="oldit" value="${it}" />
+                        <j:set var="it" value="${theGroup}" />
+                        <test:bar />
+                        <j:set var="it" value="${oldit}" />
+                    </td>
+                </tr>
+            </table>
+        </j:forEach>
+
+
+        <h2>Result Breakdown by Module</h2>
+        <table class="pane sortable" id="testresult">
+            <tbody>
+                <tr>
+                    <td class="pane-header" style="width:10em"></td>
+                    <td class="pane-header" >${%Pass}</td>
+                    <td class="pane-header" style="width:1em; font-size:smaller; white-space:nowrap;">(${%diff})</td>
+                    <td class="pane-header" >${%Fail}</td>
+                    <td class="pane-header" style="width:1em; font-size:smaller; white-space:nowrap;">(${%diff})</td>
+                    <td class="pane-header" >${%Skip}</td>
+                    <td class="pane-header" style="width:1em; font-size:smaller; white-space:nowrap;">(${%diff})</td>
+                    <td class="pane-header" >${%Total}</td>
+                    <td class="pane-header" style="width:1em; font-size:smaller; white-space:nowrap;">(${%diff})</td>
+                    <td class="pane-header" >${%Success Rate}</td>
+                    <td class="pane-header" >${%Failure Rate}</td>
+                    <td class="pane-header" >${%Skip Rate}</td>
+                </tr>
+
+                <j:forEach var="moduleName" items="${it.moduleNames}">
+                    <j:set var="theGroup" value="${it.getModuleResultByName(moduleName)}"></j:set>
+                    <tr>
+                        <td class="pane" style="text-align:right"><a href="${moduleName}">${theGroup.displayName}</a></td>
+                        <td class="pane" style="text-align:right">${theGroup.passCount}</td>
+                        <td class="pane" style="text-align:right">${h.getDiffString2(theGroup.passDiff)}</td>
+                        <td class="pane result-failed" style="text-align:right">${theGroup.failCount}</td>
+                        <td class="pane result-regression" style="text-align:right">${h.getDiffString2(theGroup.failDiff)}</td>
+                        <td class="pane" style="text-align:right">${theGroup.skipCount}</td>
+                        <td class="pane" style="text-align:right">${h.getDiffString2(theGroup.skipDiff)}</td>
+                        <td class="pane" style="text-align:right">${theGroup.totalCount}</td>
+                        <td class="pane" style="text-align:right">${h.getDiffString2(theGroup.totalDiff)}</td>
+                        <td class="pane" style="text-align:right">${theGroup.metrics.successRate}%</td>
+                        <td class="pane" style="text-align:right">${theGroup.metrics.failureRate}%</td>
+                        <td class="pane" style="text-align:right">${theGroup.metrics.skipRate}%</td>
+                    </tr>
+                </j:forEach>
+
+                <tr>
+                    <td class="pane">Total</td>
+                    <td class="pane" style="text-align:right">${it.passCount}</td>
+                    <td class="pane" style="text-align:right">${h.getDiffString2(it.passDiff)}</td>
+                    <td class="pane result-failed" style="text-align:right">${it.failCount}</td>
+                    <td class="pane result-regression" style="text-align:right">${h.getDiffString2(it.failDiff)}</td>
+                    <td class="pane" style="text-align:right">${it.skipCount}</td>
+                    <td class="pane" style="text-align:right">${h.getDiffString2(it.skipDiff)}</td>
+                    <td class="pane" style="text-align:right">${it.totalCount}</td>
+                    <td class="pane" style="text-align:right">${h.getDiffString2(it.totalDiff)}</td>
+	                <td class="pane" style="text-align:right" data="${it.metrics.successRate}">${it.metrics.successRate}%</td>
+	                <td class="pane" style="text-align:right" data="${it.metrics.failureRate}">${it.metrics.failureRate}%</td>
+	                <td class="pane" style="text-align:right" data="${it.metrics.skipRate}">${it.metrics.skipRate}%</td>		                             
+                </tr>
+            </tbody>
+        </table>
+    </j:if>
+</j:jelly>
