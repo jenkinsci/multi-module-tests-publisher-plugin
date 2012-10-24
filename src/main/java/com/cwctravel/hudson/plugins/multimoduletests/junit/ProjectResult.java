@@ -12,7 +12,6 @@ import hudson.tasks.test.TestObject;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -136,7 +135,7 @@ public class ProjectResult extends MetaTabulatedResult {
 
 	private void cacheModuleResult(String moduleName, ModuleResult testResult) {
 		if(moduleResultMap == null) {
-			moduleResultMap = new HashMap<String, ModuleResult>();
+			moduleResultMap = new WeakValueHashMap<String, ModuleResult>();
 		}
 		moduleResultMap.put(moduleName, testResult);
 	}
@@ -429,6 +428,7 @@ public class ProjectResult extends MetaTabulatedResult {
 	@Override
 	public Collection<ModuleResult> getChildren() {
 		AbstractBuild<?, ?> build = getOwner();
+
 		List<ModuleResult> result = new ArrayList<ModuleResult>();
 		try {
 			for(String moduleName: moduleNames) {

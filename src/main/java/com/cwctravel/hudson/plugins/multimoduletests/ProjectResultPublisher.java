@@ -113,7 +113,7 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 		File junitDBDir = build.getProject().getRootDir();
 		String testResultFileMask = Util.replaceMacro(config.getTestResultFileMask(), build.getBuildVariableResolver());
 		String moduleNames = Util.replaceMacro(config.getModuleNames(), build.getBuildVariableResolver());
-		JUnitSummaryInfo summary = build.getWorkspace().act(new ParseResultCallable(junitDBDir, build.getId(), build.getNumber(), build.getProject().getName(), testResultFileMask, buildTime, nowMaster, config.isKeepLongStdio()));
+		JUnitSummaryInfo summary = build.getWorkspace().act(new ParseResultCallable(junitDBDir, build.getId(), build.getNumber(), build.getProject().getName(), moduleNames, testResultFileMask, buildTime, nowMaster, config.isKeepLongStdio()));
 
 		if(summary != null) {
 			ProjectResultBuildAction action = new ProjectResultBuildAction(build, summary, moduleNames, listener);
@@ -177,12 +177,13 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 
 		private final String buildId;
 		private final String projectName;
+		private final List<String> moduleNames;
 		private final String testResults;
 
 		private final File junitDBDir;
 
-		private ParseResultCallable(File junitDBDir, String buildId, int buildNumber, String projectName, String testResults, long buildTime,
-				long nowMaster, boolean keepLongStdio) {
+		private ParseResultCallable(File junitDBDir, String buildId, int buildNumber, String projectName, String moduleNamesStr, String testResults,
+				long buildTime, long nowMaster, boolean keepLongStdio) {
 			this.buildId = buildId;
 			this.buildNumber = buildNumber;
 			this.projectName = projectName;
@@ -193,6 +194,17 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 			this.keepLongStdio = keepLongStdio;
 
 			this.junitDBDir = junitDBDir;
+
+			this.moduleNames = new ArrayList<String>();
+			if(moduleNamesStr != null) {
+				String[] moduleNamesArray = moduleNamesStr.split(",");
+				for(String moduleName: moduleNamesArray) {
+					moduleName = moduleName.trim();
+					if(!moduleName.isEmpty()) {
+						moduleNames.add(moduleName);
+					}
+				}
+			}
 		}
 
 		public JUnitSummaryInfo invoke(File ws, VirtualChannel channel) throws IOException, InterruptedException {
@@ -216,6 +228,17 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 					}
 				}
 				summary = junitDB.summarizeTestProjectForBuildNoLaterThan(buildNumber, projectName);
+
+				List<JUnitSummaryInfo> moduleSummaries = new ArrayList<JUnitSummaryInfo>();
+				for(String moduleName: moduleNames) {
+					JUnitSummaryInfo moduleSummary = junitDB.summarizeTestModuleForBuild(buildNumber, projectName, moduleName);
+					if(moduleSummary != null) {
+						moduleSummaries.add(moduleSummary);
+					}
+				}
+
+				junitDB.insertModuleSummaries(moduleSummaries);
+
 			}
 			catch(SAXException sAE) {
 				throw new IOException(sAE);

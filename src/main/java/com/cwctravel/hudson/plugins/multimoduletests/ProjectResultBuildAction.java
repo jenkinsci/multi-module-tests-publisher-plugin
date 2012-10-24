@@ -40,6 +40,7 @@ public class ProjectResultBuildAction extends AbstractTestResultAction<ProjectRe
 	 */
 	private JUnitSummaryInfo summary;
 	private final String moduleNames;
+	private transient ProjectResult projectResult;
 
 	public ProjectResultBuildAction(AbstractBuild<?, ?> owner, JUnitSummaryInfo summary, String moduleNames, BuildListener listener) {
 		super(owner);
@@ -115,8 +116,10 @@ public class ProjectResultBuildAction extends AbstractTestResultAction<ProjectRe
 	 */
 	@Override
 	public ProjectResult getResult() {
-		ProjectResult projectResult = new ProjectResult(owner, getSummary(), moduleNames, "(no description)");
-		projectResult.setParentAction(this);
+		if(projectResult == null) {
+			projectResult = new ProjectResult(owner, getSummary(), moduleNames, "(no description)");
+			projectResult.setParentAction(this);
+		}
 		return projectResult;
 	}
 

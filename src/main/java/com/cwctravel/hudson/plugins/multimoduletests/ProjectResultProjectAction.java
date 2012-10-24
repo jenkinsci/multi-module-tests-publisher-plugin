@@ -8,6 +8,7 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import org.apache.commons.lang.StringUtils;
@@ -22,6 +23,8 @@ import com.cwctravel.hudson.plugins.multimoduletests.junit.db.JUnitSummaryInfo;
 
 public class ProjectResultProjectAction extends TestResultProjectAction implements StaplerProxy {
 	private static final Logger LOGGER = Logger.getLogger(ProjectResultProjectAction.class.getName());
+
+	private transient Map<String, TrendGraph> trendGraphMap;
 
 	public ProjectResultProjectAction(AbstractProject<?, ?> project) {
 		super(project);
