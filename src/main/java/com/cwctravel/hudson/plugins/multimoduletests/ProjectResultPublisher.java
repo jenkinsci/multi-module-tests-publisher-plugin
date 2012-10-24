@@ -164,10 +164,6 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 		return new ProjectResultProjectAction(project);
 	}
 
-	public DescriptorExtensionList<TestDataPublisher, Descriptor<TestDataPublisher>> getTestDataPublisherDescriptors() {
-		return TestDataPublisher.all();
-	}
-
 	private static final class ParseResultCallable implements FilePath.FileCallable<JUnitSummaryInfo> {
 		private static final long serialVersionUID = -2412534164383439939L;
 		private static final boolean checkTimestamps = true; // TODO: change to System.getProperty
@@ -241,6 +237,10 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 		@Override
 		public String getDisplayName() {
 			return "Publish JUnit test result report grouped by module";
+		}
+
+		public DescriptorExtensionList<TestDataPublisher, Descriptor<TestDataPublisher>> getTestDataPublisherDescriptors() {
+			return TestDataPublisher.all();
 		}
 
 		@Override

@@ -42,7 +42,7 @@ THE SOFTWARE.
 						<table width="100%">	
 							<f:entry>
 							 <f:descriptorList title="${%Test Report Publishers}"
-			                    descriptors="${instance.testDataPublisherDescriptors}"
+			                    descriptors="${d.testDataPublisherDescriptors}"
 			                    instances="${instance.testDataPublishers}" />
 			                </f:entry>    
 			           </table>
