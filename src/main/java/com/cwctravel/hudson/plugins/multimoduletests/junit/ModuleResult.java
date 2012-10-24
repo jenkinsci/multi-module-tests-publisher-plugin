@@ -259,7 +259,7 @@ public final class ModuleResult extends MetaTabulatedResult {
 	private JUnitSummaryInfo getPreviousSummary() {
 		if(previousSummary == null) {
 			try {
-				previousSummary = junitDB.summarizeTestModuleForBuildPriorTo(summary.getBuildNumber(), summary.getProjectName(), getName());
+				previousSummary = junitDB.fetchTestModuleSummaryForBuildPriorTo(summary.getBuildNumber(), summary.getProjectName(), getName());
 			}
 			catch(SQLException sE) {
 				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);
@@ -342,7 +342,7 @@ public final class ModuleResult extends MetaTabulatedResult {
 	public int getFailedSince() { // TODO: implement this.
 		if(failedSince == 0 && getFailCount() > 0) {
 			try {
-				List<JUnitSummaryInfo> history = junitDB.summarizeTestModuleHistory(summary.getProjectName(), summary.getModuleName(), 5000);
+				List<JUnitSummaryInfo> history = junitDB.fetchTestModuleSummaryHistory(summary.getProjectName(), summary.getModuleName(), 5000);
 				for(JUnitSummaryInfo junitSummaryInfo: history) {
 					int failedBuildNumber = junitSummaryInfo.getBuildNumber();
 					if(failedBuildNumber < getOwner().getNumber() && junitSummaryInfo.getFailCount() > 0) {

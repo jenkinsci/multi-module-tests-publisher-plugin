@@ -98,7 +98,7 @@ public class ProjectResultProjectAction extends TestResultProjectAction implemen
 					JUnitDB junitDB;
 					try {
 						junitDB = new JUnitDB(project.getRootDir().getAbsolutePath());
-						List<JUnitSummaryInfo> historyList = junitDB.summarizeTestModuleHistory(project.getName(), moduleName, MAX_HISTORY);
+						List<JUnitSummaryInfo> historyList = junitDB.fetchTestModuleSummaryHistory(project.getName(), moduleName, MAX_HISTORY);
 						return new TrendGraph("/testReport/", "/" + moduleName + "/", "count", historyList);
 					}
 					catch(SQLException e) {

@@ -81,7 +81,7 @@ public class History extends hudson.tasks.junit.History {
 			else if(testObject instanceof ModuleResult) {
 				ModuleResult testResult = (ModuleResult)testObject;
 				String suiteName = testResult.getName();
-				historyItems = junitDB.summarizeTestModuleHistory(projectName, suiteName, limit);
+				historyItems = junitDB.fetchTestModuleSummaryHistory(projectName, suiteName, limit);
 			}
 			else if(testObject instanceof PackageResult) {
 				PackageResult packageResult = (PackageResult)testObject;
