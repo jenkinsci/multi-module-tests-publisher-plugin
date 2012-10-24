@@ -19,7 +19,7 @@
 
 
   <artifactId>multi-module-tests-publisher</artifactId>
-  <version>1.15-SNAPSHOT</version>
+  <version>1.15</version>
   <packaging>hpi</packaging>
   
   <distributionManagement>
