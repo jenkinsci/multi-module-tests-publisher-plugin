@@ -425,6 +425,7 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 		if(historyReference == null || (history = historyReference.get()) == null) {
 			history = new History(this, 5000);
 			historyReference = new WeakReference<History>(history);
+			return history;
 		}
 		return history;
 	}

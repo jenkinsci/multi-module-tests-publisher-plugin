@@ -26,8 +26,8 @@ THE SOFTWARE.
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:i="jelly:fmt">
   <l:layout title="${%title(it.testObject.displayName)}">
 		<j:set var="start" value="${request.getParameter('start')?:0}"/>
-		<j:set var="end" value="${request.getParameter('end')?:start+24}"/>
-		<j:set var="rangeParameters" value="start=${start}&amp;end=${end+1}"/>
+		<j:set var="end" value="${request.getParameter('end')?:start+25}"/>
+		<j:set var="rangeParameters" value="start=${start}&amp;end=${end}"/>
 		<script type="text/javascript">
 			function setCount() {
 				document.getElementById("graph").src = "countGraph/png?${rangeParameters}";
@@ -70,7 +70,7 @@ THE SOFTWARE.
 	      </j:if>
 	       
 	      <j:if test="${it.count > end}">
-	      		<a href="${app.rootUrl}${it.testObject.owner.url}testReport${it.testObject.url}/history?start=${end+1}">${%Older}</a>
+	      		<a href="${app.rootUrl}${it.testObject.owner.url}testReport${it.testObject.url}/history?start=${end}">${%Older}</a>
 	      </j:if>
       	</div>
     </l:main-panel>

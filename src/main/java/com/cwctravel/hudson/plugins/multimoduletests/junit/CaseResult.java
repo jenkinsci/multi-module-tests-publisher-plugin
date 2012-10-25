@@ -555,6 +555,7 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 		if(historyReference == null || (history = historyReference.get()) == null) {
 			history = new History(this, 5000);
 			historyReference = new WeakReference<History>(history);
+			return history;
 		}
 		return history;
 	}
