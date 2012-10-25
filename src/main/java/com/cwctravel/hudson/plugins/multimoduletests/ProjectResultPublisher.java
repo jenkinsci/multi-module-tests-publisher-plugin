@@ -46,7 +46,6 @@ import com.cwctravel.hudson.plugins.multimoduletests.ProjectResultBuildAction.Da
 import com.cwctravel.hudson.plugins.multimoduletests.junit.JUnitParser;
 import com.cwctravel.hudson.plugins.multimoduletests.junit.ProjectResult;
 import com.cwctravel.hudson.plugins.multimoduletests.junit.db.JUnitDB;
-import com.cwctravel.hudson.plugins.multimoduletests.junit.db.JUnitSummaryInfo;
 
 public class ProjectResultPublisher extends Recorder implements Serializable, MatrixAggregatable {
 	private static final long serialVersionUID = -4830492397041441842L;
@@ -113,32 +112,31 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 		File junitDBDir = build.getProject().getRootDir();
 		String testResultFileMask = Util.replaceMacro(config.getTestResultFileMask(), build.getBuildVariableResolver());
 		String moduleNames = Util.replaceMacro(config.getModuleNames(), build.getBuildVariableResolver());
-		JUnitSummaryInfo summary = build.getWorkspace().act(new ParseResultCallable(junitDBDir, build.getId(), build.getNumber(), build.getProject().getName(), moduleNames, testResultFileMask, buildTime, nowMaster, config.isKeepLongStdio()));
+		build.getWorkspace().act(new ParseResultCallable(junitDBDir, build.getId(), build.getNumber(), build.getProject().getName(), moduleNames, testResultFileMask, buildTime, nowMaster, config.isKeepLongStdio()));
 
-		if(summary != null) {
-			ProjectResultBuildAction action = new ProjectResultBuildAction(build, summary, moduleNames, listener);
-			ProjectResult projectResult = action.getResult();
-			build.addAction(action);
+		ProjectResultBuildAction action = new ProjectResultBuildAction(build, moduleNames, listener);
+		ProjectResult projectResult = action.getResult();
+		build.addAction(action);
 
-			List<Data> data = new ArrayList<Data>();
-			if(testDataPublishers != null) {
-				for(TestDataPublisher tdp: testDataPublishers) {
-					Data d = tdp.getTestData(build, launcher, listener, projectResult);
-					if(d != null) {
-						data.add(d);
-					}
+		List<Data> data = new ArrayList<Data>();
+		if(testDataPublishers != null) {
+			for(TestDataPublisher tdp: testDataPublishers) {
+				Data d = tdp.getTestData(build, launcher, listener, projectResult);
+				if(d != null) {
+					data.add(d);
 				}
 			}
-
-			action.setData(data);
-
-			Result healthResult = determineBuildHealth(build, projectResult);
-
-			// Parsers can only decide to make the build worse than it currently is, never better.
-			if(healthResult != null && healthResult.isWorseThan(build.getResult())) {
-				build.setResult(healthResult);
-			}
 		}
+
+		action.setData(data);
+
+		Result healthResult = determineBuildHealth(build, projectResult);
+
+		// Parsers can only decide to make the build worse than it currently is, never better.
+		if(healthResult != null && healthResult.isWorseThan(build.getResult())) {
+			build.setResult(healthResult);
+		}
+
 		LOGGER.info("Test results parsed.");
 		listener.getLogger().println("Test results parsed.");
 
@@ -164,7 +162,7 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 		return new ProjectResultProjectAction(project);
 	}
 
-	private static final class ParseResultCallable implements FilePath.FileCallable<JUnitSummaryInfo> {
+	private static final class ParseResultCallable implements FilePath.FileCallable<Void> {
 		private static final long serialVersionUID = -2412534164383439939L;
 		private static final boolean checkTimestamps = true; // TODO: change to System.getProperty
 
@@ -207,9 +205,8 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 			}
 		}
 
-		public JUnitSummaryInfo invoke(File ws, VirtualChannel channel) throws IOException, InterruptedException {
+		public Void invoke(File ws, VirtualChannel channel) throws IOException, InterruptedException {
 			final long nowSlave = System.currentTimeMillis();
-			JUnitSummaryInfo summary = null;
 			FileSet fs = Util.createFileSet(ws, testResults);
 			DirectoryScanner ds = fs.getDirectoryScanner();
 			String[] includedFiles = ds.getIncludedFiles();
@@ -227,7 +224,7 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 						}
 					}
 				}
-				summary = junitDB.summarizeTestProjectForBuildNoLaterThan(buildNumber, projectName);
+				junitDB.summarizeTestProjectForBuild(buildNumber, projectName);
 
 				for(String moduleName: moduleNames) {
 					junitDB.summarizeTestModuleForBuild(buildNumber, projectName, moduleName);
@@ -245,7 +242,7 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 				throw new IOException(sE);
 			}
 
-			return summary;
+			return null;
 		}
 	}
 

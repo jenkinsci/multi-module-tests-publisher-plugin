@@ -253,7 +253,7 @@ public class ProjectResult extends MetaTabulatedResult {
 	public JUnitSummaryInfo getPreviousSummary() {
 		if(previousSummary == null) {
 			try {
-				previousSummary = junitDB.summarizeTestProjectForBuildPriorTo(summary.getBuildNumber(), summary.getProjectName());
+				previousSummary = junitDB.fetchTestProjectSummaryForBuildPriorTo(summary.getBuildNumber(), summary.getProjectName());
 			}
 			catch(SQLException sE) {
 				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);

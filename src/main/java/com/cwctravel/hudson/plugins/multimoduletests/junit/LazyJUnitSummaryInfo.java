@@ -56,7 +56,7 @@ public class LazyJUnitSummaryInfo extends JUnitSummaryInfo {
 			}
 			else if(type == SUMMARY_TYPE_PROJECT) {
 				try {
-					summary = junitDB.summarizeTestProjectForBuild(testInfo.getBuildNumber(), testInfo.getProjectName());
+					summary = junitDB.fetchTestProjectSummaryForBuild(testInfo.getBuildNumber(), testInfo.getProjectName());
 				}
 				catch(SQLException sE) {
 					throw new JUnitException(sE);

@@ -38,13 +38,12 @@ public class ProjectResultBuildAction extends AbstractTestResultAction<ProjectRe
 	/**
 	 * Store the result group itself in a separate file so we don't eat up too much memory.
 	 */
-	private JUnitSummaryInfo summary;
+	private transient JUnitSummaryInfo summary;
 	private final String moduleNames;
 	private transient ProjectResult projectResult;
 
-	public ProjectResultBuildAction(AbstractBuild<?, ?> owner, JUnitSummaryInfo summary, String moduleNames, BuildListener listener) {
+	public ProjectResultBuildAction(AbstractBuild<?, ?> owner, String moduleNames, BuildListener listener) {
 		super(owner);
-		this.summary = summary;
 		this.moduleNames = moduleNames;
 	}
 
@@ -99,7 +98,7 @@ public class ProjectResultBuildAction extends AbstractTestResultAction<ProjectRe
 			JUnitDB junitDB;
 			try {
 				junitDB = new JUnitDB(owner.getProject().getRootDir().getAbsolutePath());
-				summary = junitDB.summarizeTestProjectForBuildNoLaterThan(owner.getNumber(), owner.getProject().getName());
+				summary = junitDB.fetchTestProjectSummaryForBuildNoLaterThan(owner.getNumber(), owner.getProject().getName());
 			}
 			catch(SQLException e) {
 				LOGGER.log(Level.SEVERE, e.getMessage(), e);
