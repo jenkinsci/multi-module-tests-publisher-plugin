@@ -40,7 +40,7 @@ public class LazyJUnitSummaryInfo extends JUnitSummaryInfo {
 			}
 			else if(type == SUMMARY_TYPE_PACKAGE) {
 				try {
-					summary = junitDB.summarizeTestPackageForBuild(testInfo.getBuildNumber(), testInfo.getProjectName(), testInfo.getModuleName(), testInfo.getPackageName());
+					summary = junitDB.fetchTestPackageSummaryForBuild(testInfo.getBuildNumber(), testInfo.getProjectName(), testInfo.getModuleName(), testInfo.getPackageName());
 				}
 				catch(SQLException sE) {
 					throw new JUnitException(sE);
@@ -48,7 +48,7 @@ public class LazyJUnitSummaryInfo extends JUnitSummaryInfo {
 			}
 			else if(type == SUMMARY_TYPE_MODULE) {
 				try {
-					summary = junitDB.summarizeTestModuleForBuild(testInfo.getBuildNumber(), testInfo.getProjectName(), testInfo.getModuleName());
+					summary = junitDB.fetchTestModuleSummaryForBuild(testInfo.getBuildNumber(), testInfo.getProjectName(), testInfo.getModuleName());
 				}
 				catch(SQLException sE) {
 					throw new JUnitException(sE);

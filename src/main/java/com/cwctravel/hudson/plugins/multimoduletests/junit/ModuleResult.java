@@ -511,7 +511,7 @@ public final class ModuleResult extends MetaTabulatedResult {
 	public PackageResult byPackage(String packageName) {
 		try {
 			PackageResult result = null;
-			JUnitSummaryInfo junitSummaryInfo = junitDB.summarizeTestPackageForBuild(summary.getBuildNumber(), summary.getProjectName(), summary.getModuleName(), packageName);
+			JUnitSummaryInfo junitSummaryInfo = junitDB.fetchTestPackageSummaryForBuild(summary.getBuildNumber(), summary.getProjectName(), summary.getModuleName(), packageName);
 			if(junitSummaryInfo != null) {
 				result = new PackageResult(this, junitSummaryInfo);
 			}

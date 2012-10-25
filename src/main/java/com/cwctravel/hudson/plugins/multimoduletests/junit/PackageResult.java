@@ -245,7 +245,7 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 	private JUnitSummaryInfo getPreviousSummary() {
 		if(previousSummary == null) {
 			try {
-				previousSummary = junitDB.summarizeTestPackageForBuildPriorTo(summary.getBuildNumber(), summary.getProjectName(), summary.getModuleName(), summary.getPackageName());
+				previousSummary = junitDB.fetchTestPackageSummaryForBuildPriorTo(summary.getBuildNumber(), summary.getProjectName(), summary.getModuleName(), summary.getPackageName());
 			}
 			catch(SQLException sE) {
 				LOGGER.log(Level.SEVERE, sE.getMessage(), sE);

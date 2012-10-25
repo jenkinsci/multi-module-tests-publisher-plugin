@@ -204,14 +204,14 @@ public class JUnitDB {
 				   "PACKAGE_NAME, " +
 				   "'' CLASS_NAME, " +
 				   "'' CASE_NAME, " +
-				   "COUNT(*) TOTAL_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 0 THEN 1 ELSE 0 END)) PASS_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 1 THEN 1 ELSE 0 END)) FAIL_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 2 THEN 1 ELSE 0 END)) ERROR_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 3 THEN 1 ELSE 0 END)) SKIP_COUNT, " +
+				   "SUM(TOTAL_COUNT) TOTAL_COUNT, " +
+				   "SUM(PASS_COUNT) PASS_COUNT, " +
+				   "SUM(FAIL_COUNT) FAIL_COUNT, " +
+				   "SUM(ERROR_COUNT) ERROR_COUNT, " +
+				   "SUM(SKIP_COUNT) SKIP_COUNT, " +
 				   "MIN(START_TIME) START_TIME, " +
 				   "SUM(DURATION) DURATION " +
-				   "FROM JUNIT_TESTS WHERE PROJECT_NAME= ? AND MODULE_NAME = ? AND PACKAGE_NAME = ? GROUP BY BUILD_NUMBER, PROJECT_NAME, MODULE_NAME, PACKAGE_NAME ORDER BY BUILD_NUMBER DESC";
+				   "FROM JUNIT_PACKAGE_SUMMARY WHERE PROJECT_NAME= ? AND MODULE_NAME = ? AND PACKAGE_NAME = ? GROUP BY BUILD_NUMBER, PROJECT_NAME, MODULE_NAME, PACKAGE_NAME ORDER BY BUILD_NUMBER DESC";
 
 	private static final String JUNIT_TESTS_FETCH_TEST_PACKAGE_CHILDREN_FOR_BUILD_QUERY =			
 			"SELECT MIN(BUILD_ID) BUILD_ID, " +
@@ -232,14 +232,13 @@ public class JUnitDB {
 	
 
 	
-	private static final String JUNIT_TESTS_SUMMARIZE_TEST_PACKAGE_FOR_BUILD_QUERY =			
-			"SELECT MIN(BUILD_ID) BUILD_ID, " +
+	private static final String JUNIT_TESTS_SUMMARIZE_TEST_PACKAGES_FOR_BUILD_QUERY =			
+			"INSERT INTO JUNIT_PACKAGE_SUMMARY(BUILD_ID, BUILD_NUMBER,PROJECT_NAME, MODULE_NAME, PACKAGE_NAME, TOTAL_COUNT, PASS_COUNT, FAIL_COUNT, ERROR_COUNT, SKIP_COUNT, START_TIME, DURATION) " +
+				   "SELECT MIN(BUILD_ID) BUILD_ID, " +
 				   "BUILD_NUMBER, " +
 				   "PROJECT_NAME, " +
 				   "MODULE_NAME, " +
 				   "PACKAGE_NAME, " +
-				   "'' CLASS_NAME, " +
-				   "'' CASE_NAME, " +
 				   "COUNT(*) TOTAL_COUNT, " +
 				   "SUM((CASE WHEN STATUS = 0 THEN 1 ELSE 0 END)) PASS_COUNT, " +
 				   "SUM((CASE WHEN STATUS = 1 THEN 1 ELSE 0 END)) FAIL_COUNT, " +
@@ -247,34 +246,51 @@ public class JUnitDB {
 				   "SUM((CASE WHEN STATUS = 3 THEN 1 ELSE 0 END)) SKIP_COUNT, " +
 				   "MIN(START_TIME) START_TIME, " +
 				   "SUM(DURATION) DURATION " +
-				   "FROM JUNIT_TESTS WHERE BUILD_NUMBER = ? AND PROJECT_NAME= ? AND MODULE_NAME = ? AND PACKAGE_NAME = ? GROUP BY BUILD_NUMBER, PROJECT_NAME, MODULE_NAME, PACKAGE_NAME";
+				   "FROM JUNIT_TESTS WHERE BUILD_NUMBER = ? AND PROJECT_NAME= ? AND MODULE_NAME = ? GROUP BY BUILD_NUMBER, PROJECT_NAME, MODULE_NAME, PACKAGE_NAME";
 	
 	private static final String JUNIT_TESTS_FETCH_TEST_PACKAGE_METRICS_FOR_BUILD_QUERY =			
-			"SELECT COUNT(*) TOTAL_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 0 THEN 1 ELSE 0 END)) PASS_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 1 THEN 1 ELSE 0 END)) FAIL_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 2 THEN 1 ELSE 0 END)) ERROR_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 3 THEN 1 ELSE 0 END)) SKIP_COUNT, " +
+			"SELECT SUM(TOTAL_COUNT) TOTAL_COUNT, " +
+				   "SUM(PASS_COUNT) PASS_COUNT, " +
+				   "SUM(FAIL_COUNT) FAIL_COUNT, " +
+				   "SUM(ERROR_COUNT) ERROR_COUNT, " +
+				   "SUM(SKIP_COUNT) SKIP_COUNT, " +
 				   "MIN(START_TIME) START_TIME, " +
 				   "SUM(DURATION) DURATION " +
-				   "FROM JUNIT_TESTS WHERE BUILD_NUMBER <= ? AND PROJECT_NAME = ? AND MODULE_NAME = ? AND PACKAGE_NAME = ?";	
-	
-	private static final String JUNIT_TESTS_SUMMARIZE_TEST_PACKAGE_FOR_BUILD_PRIOR_TO_QUERY =			
-			"SELECT MIN(BUILD_ID) BUILD_ID, " +
+				   "FROM JUNIT_PACKAGE_SUMMARY WHERE BUILD_NUMBER = ? AND PROJECT_NAME = ? AND MODULE_NAME = ? AND PACKAGE_NAME = ?";	
+
+	private static final String JUNIT_TESTS_FETCH_TEST_PACKAGE_SUMMARY_FOR_BUILD_QUERY =			
+			"SELECT BUILD_ID, " +
 				   "BUILD_NUMBER, " +
 				   "PROJECT_NAME, " +
 				   "MODULE_NAME, " +
 				   "PACKAGE_NAME, " +
 				   "'' CLASS_NAME, " +
 				   "'' CASE_NAME, " +
-				   "COUNT(*) TOTAL_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 0 THEN 1 ELSE 0 END)) PASS_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 1 THEN 1 ELSE 0 END)) FAIL_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 2 THEN 1 ELSE 0 END)) ERROR_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 3 THEN 1 ELSE 0 END)) SKIP_COUNT, " +
-				   "MIN(START_TIME) START_TIME, " +
-				   "SUM(DURATION) DURATION " +
-				   "FROM JUNIT_TESTS WHERE BUILD_NUMBER < ? AND PROJECT_NAME= ? AND MODULE_NAME = ? AND PACKAGE_NAME = ? GROUP BY BUILD_NUMBER, PROJECT_NAME, MODULE_NAME, PACKAGE_NAME ORDER BY BUILD_NUMBER DESC";		
+				   "TOTAL_COUNT, " +
+				   "PASS_COUNT, " +
+				   "FAIL_COUNT, " +
+				   "ERROR_COUNT, " +
+				   "SKIP_COUNT, " +
+				   "START_TIME, " +
+				   "DURATION " +
+				   "FROM JUNIT_PACKAGE_SUMMARY WHERE BUILD_NUMBER = ? AND PROJECT_NAME= ? AND MODULE_NAME = ? AND PACKAGE_NAME = ?";
+	
+	private static final String JUNIT_TESTS_FETCH_TEST_PACKAGE_SUMMARY_FOR_BUILD_PRIOR_TO_QUERY =			
+			"SELECT BUILD_ID, " +
+				   "BUILD_NUMBER, " +
+				   "PROJECT_NAME, " +
+				   "MODULE_NAME, " +
+				   "PACKAGE_NAME, " +
+				   "'' CLASS_NAME, " +
+				   "'' CASE_NAME, " +
+				   "TOTAL_COUNT, " +
+				   "PASS_COUNT, " +
+				   "FAIL_COUNT, " +
+				   "ERROR_COUNT, " +
+				   "SKIP_COUNT, " +
+				   "START_TIME, " +
+				   "DURATION " +
+				   "FROM JUNIT_PACKAGE_SUMMARY WHERE BUILD_NUMBER < ? AND PROJECT_NAME= ? AND MODULE_NAME = ? AND PACKAGE_NAME = ? ORDER BY BUILD_NUMBER DESC FETCH FIRST ROW ONLY";		
 	
 	private static final String JUNIT_FETCH_TEST_MODULE_SUMMARY_HISTORY_QUERY =			
 			"SELECT BUILD_ID, " +
@@ -294,30 +310,28 @@ public class JUnitDB {
 				   "FROM JUNIT_MODULE_SUMMARY WHERE PROJECT_NAME= ? AND MODULE_NAME = ? ORDER BY BUILD_NUMBER DESC";	
 
 	private static final String JUNIT_TESTS_FETCH_TEST_MODULE_CHILDREN_FOR_BUILD_QUERY =			
-			"SELECT MIN(BUILD_ID) BUILD_ID, " +
+			"SELECT BUILD_ID, " +
 				   "BUILD_NUMBER, " +
 				   "PROJECT_NAME, " +
 				   "MODULE_NAME, " +
 				   "PACKAGE_NAME, " +	
 				   "'' CLASS_NAME, " +		
 				   "'' CASE_NAME, " +
-				   "COUNT(*) TOTAL_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 0 THEN 1 ELSE 0 END)) PASS_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 1 THEN 1 ELSE 0 END)) FAIL_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 2 THEN 1 ELSE 0 END)) ERROR_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 3 THEN 1 ELSE 0 END)) SKIP_COUNT, " +
-				   "MIN(START_TIME) START_TIME, " +
-				   "SUM(DURATION) DURATION " +
-				   "FROM JUNIT_TESTS WHERE BUILD_NUMBER = ? AND PROJECT_NAME= ? AND MODULE_NAME = ? GROUP BY BUILD_NUMBER, PROJECT_NAME, MODULE_NAME, PACKAGE_NAME";
+				   "TOTAL_COUNT, " +
+				   "PASS_COUNT, " +
+				   "FAIL_COUNT, " +
+				   "ERROR_COUNT, " +
+				   "SKIP_COUNT, " +
+				   "START_TIME, " +
+				   "DURATION " +
+				   "FROM JUNIT_PACKAGE_SUMMARY WHERE BUILD_NUMBER = ? AND PROJECT_NAME= ? AND MODULE_NAME = ? ";
 	
 	private static final String JUNIT_TESTS_SUMMARIZE_TEST_MODULE_FOR_BUILD_QUERY =			
-			"SELECT MIN(BUILD_ID) BUILD_ID, " +
+			"INSERT INTO JUNIT_MODULE_SUMMARY(BUILD_ID, BUILD_NUMBER, PROJECT_NAME, MODULE_NAME, TOTAL_COUNT, PASS_COUNT, FAIL_COUNT, ERROR_COUNT, SKIP_COUNT, START_TIME, DURATION) " + 
+				   "SELECT MIN(BUILD_ID) BUILD_ID, " +
 				   "BUILD_NUMBER, " +
 				   "PROJECT_NAME, " +
 				   "MODULE_NAME, " +
-				   "'' PACKAGE_NAME, " +	
-				   "'' CLASS_NAME, " +		
-				   "'' CASE_NAME, " +
 				   "COUNT(*) TOTAL_COUNT, " +
 				   "SUM((CASE WHEN STATUS = 0 THEN 1 ELSE 0 END)) PASS_COUNT, " +
 				   "SUM((CASE WHEN STATUS = 1 THEN 1 ELSE 0 END)) FAIL_COUNT, " +
@@ -335,7 +349,24 @@ public class JUnitDB {
 				   "SUM(SKIP_COUNT) SKIP_COUNT, " +
 				   "MIN(START_TIME) START_TIME, " +
 				   "SUM(DURATION) DURATION " +
-				   "FROM JUNIT_MODULE_SUMMARY WHERE BUILD_NUMBER <= ? AND PROJECT_NAME= ? AND MODULE_NAME = ?";	
+				   "FROM JUNIT_MODULE_SUMMARY WHERE BUILD_NUMBER = ? AND PROJECT_NAME= ? AND MODULE_NAME = ?";	
+
+	private static final String JUNIT_FETCH_TEST_MODULE_SUMMARY_FOR_BUILD_QUERY =			
+			"SELECT BUILD_ID, " +
+				   "BUILD_NUMBER, " +
+				   "PROJECT_NAME, " +
+				   "MODULE_NAME, " +
+				   "'' PACKAGE_NAME, " +	
+				   "'' CLASS_NAME, " +		
+				   "'' CASE_NAME, " +
+				   "TOTAL_COUNT, " +
+				   "PASS_COUNT, " +
+				   "FAIL_COUNT, " +
+				   "ERROR_COUNT, " +
+				   "SKIP_COUNT, " +
+				   "START_TIME, " +
+				   "DURATION " +
+				   "FROM JUNIT_MODULE_SUMMARY WHERE BUILD_NUMBER = ? AND PROJECT_NAME= ? AND MODULE_NAME = ?";
 	
 	private static final String JUNIT_FETCH_TEST_MODULE_SUMMARY_FOR_BUILD_PRIOR_TO_QUERY =			
 			"SELECT BUILD_ID, " +
@@ -352,24 +383,24 @@ public class JUnitDB {
 				   "SKIP_COUNT, " +
 				   "START_TIME, " +
 				   "DURATION " +
-				   "FROM JUNIT_MODULE_SUMMARY WHERE BUILD_NUMBER < ? AND PROJECT_NAME= ? AND MODULE_NAME = ? GROUP BY BUILD_NUMBER, PROJECT_NAME, MODULE_NAME  ORDER BY BUILD_NUMBER DESC FETCH FIRST ROW ONLY";	
+				   "FROM JUNIT_MODULE_SUMMARY WHERE BUILD_NUMBER < ? AND PROJECT_NAME= ? AND MODULE_NAME = ? ORDER BY BUILD_NUMBER DESC FETCH FIRST ROW ONLY";	
 	
-	private static final String JUNIT_TESTS_SUMMARIZE_TEST_MODULE_FOR_BUILD_NO_LATER_THAN_QUERY =			
-			"SELECT MIN(BUILD_ID) BUILD_ID, " +
+	private static final String JUNIT_TESTS_FETCH_TEST_MODULE_SUMMARY_FOR_BUILD_NO_LATER_THAN_QUERY =			
+			"SELECT BUILD_ID, " +
 				   "BUILD_NUMBER, " +
 				   "PROJECT_NAME, " +
 				   "MODULE_NAME, " +
 				   "'' PACKAGE_NAME, " +	
 				   "'' CLASS_NAME, " +		
 				   "'' CASE_NAME, " +
-				   "COUNT(*) TOTAL_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 0 THEN 1 ELSE 0 END)) PASS_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 1 THEN 1 ELSE 0 END)) FAIL_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 2 THEN 1 ELSE 0 END)) ERROR_COUNT, " +
-				   "SUM((CASE WHEN STATUS = 3 THEN 1 ELSE 0 END)) SKIP_COUNT, " +
-				   "MIN(START_TIME) START_TIME, " +
-				   "SUM(DURATION) DURATION " +
-				   "FROM JUNIT_TESTS WHERE BUILD_NUMBER <= ? AND PROJECT_NAME= ? AND MODULE_NAME = ? GROUP BY BUILD_NUMBER, PROJECT_NAME, MODULE_NAME  ORDER BY BUILD_NUMBER DESC FETCH FIRST ROW ONLY";	
+				   "TOTAL_COUNT, " +
+				   "PASS_COUNT, " +
+				   "FAIL_COUNT, " +
+				   "ERROR_COUNT, " +
+				   "SKIP_COUNT, " +
+				   "START_TIME, " +
+				   "DURATION " +
+				   "FROM JUNIT_MODULE_SUMMARY WHERE BUILD_NUMBER <= ? AND PROJECT_NAME= ? AND MODULE_NAME = ? ORDER BY BUILD_NUMBER DESC FETCH FIRST ROW ONLY";	
 	
 	private static final String JUNIT_TESTS_SUMMARIZE_TEST_PROJECT_HISTORY_QUERY =			
 			"SELECT MIN(BUILD_ID) BUILD_ID, " +
@@ -500,6 +531,21 @@ public class JUnitDB {
 						  "DURATION BIGINT " +
 						 ")";	
 	
+	private static final String JUNIT_PACKAGE_SUMMARY_TABLE_CREATE_QUERY = "CREATE TABLE " +
+			"JUNIT_PACKAGE_SUMMARY(ID BIGINT GENERATED ALWAYS AS IDENTITY(START WITH 100, INCREMENT BY 1), " +
+						  "PROJECT_NAME VARCHAR(256) NOT NULL, " +
+						  "BUILD_ID VARCHAR(256) NOT NULL, " +
+						  "BUILD_NUMBER INTEGER NOT NULL, " +
+						  "MODULE_NAME VARCHAR(256) NOT NULL, " +
+						  "PACKAGE_NAME VARCHAR(256) NOT NULL, " +
+						  "TOTAL_COUNT BIGINT NOT NULL, " +
+						  "PASS_COUNT BIGINT NOT NULL, " +
+						  "FAIL_COUNT BIGINT NOT NULL, " +
+						  "ERROR_COUNT BIGINT NOT NULL, " +
+						  "SKIP_COUNT BIGINT NOT NULL, " +
+						  "START_TIME TIMESTAMP, " +
+						  "DURATION BIGINT " +
+						 ")";		
 	
 	private static final String JUNIT_TESTS_TABLE_INDEX_1 = "CREATE INDEX IDX_JUNIT_TESTS_1 ON JUNIT_TESTS(BUILD_ID, PROJECT_NAME, MODULE_NAME, PACKAGE_NAME, CLASS_NAME, CASE_NAME)";
 	private static final String JUNIT_TESTS_TABLE_INDEX_2 = "CREATE INDEX IDX_JUNIT_TESTS_2 ON JUNIT_TESTS(BUILD_ID, PROJECT_NAME, MODULE_NAME, PACKAGE_NAME, CLASS_NAME)";
@@ -514,7 +560,11 @@ public class JUnitDB {
 	private static final String JUNIT_TESTS_TABLE_INDEX_11 = "CREATE INDEX IDX_JUNIT_TESTS_11 ON JUNIT_TESTS(PROJECT_NAME, BUILD_NUMBER)";
 	private static final String JUNIT_TESTS_TABLE_INDEX_12 = "CREATE INDEX IDX_JUNIT_TESTS_12 ON JUNIT_TESTS(PROJECT_NAME)";
 	
-	private static final String JUNIT_MODULE_SUMMARY_TABLE_INDEX_1= "CREATE INDEX IDX_JUNIT_MODULE_SUMMARY_1 ON JUNIT_MODULE_SUMMARY(PROJECT_NAME, MODULE_NAME)";
+	private static final String JUNIT_INDEX_UNIQUE_MODULE_SUMMARY_TABLE_1= "CREATE UNIQUE INDEX IDXUQ_JUNIT_MODULE_SUMMARY_1 ON JUNIT_MODULE_SUMMARY(BUILD_NUMBER, PROJECT_NAME, MODULE_NAME)";
+	private static final String JUNIT_INDEX_MODULE_SUMMARY_TABLE_1= "CREATE INDEX IDX_JUNIT_MODULE_SUMMARY_1 ON JUNIT_MODULE_SUMMARY(PROJECT_NAME, MODULE_NAME)";
+	
+	private static final String JUNIT_INDEX_UNIQUE_PACKAGE_SUMMARY_TABLE_1= "CREATE UNIQUE INDEX IDXUQ_JUNIT_PACKAGE_SUMMARY_1 ON JUNIT_PACKAGE_SUMMARY(BUILD_NUMBER, PROJECT_NAME, MODULE_NAME, PACKAGE_NAME)";
+	private static final String JUNIT_INDEX_PACKAGE_SUMMARY_TABLE_1= "CREATE INDEX IDX_JUNIT_PACKAGE_SUMMARY_1 ON JUNIT_PACKAGE_SUMMARY(PROJECT_NAME, MODULE_NAME, PACKAGE_NAME)";
 	
 	private static final String JUNIT_TESTS_TABLE_INSERT_QUERY = "INSERT INTO JUNIT_TESTS(PROJECT_NAME, " +
 																						 "BUILD_ID, " +
@@ -533,19 +583,7 @@ public class JUnitDB {
 																						 "STDERR) " +
 																				  "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 	
-	private static final String JUNIT_MODULE_SUMMARY_TABLE_INSERT_QUERY = "INSERT INTO JUNIT_MODULE_SUMMARY(PROJECT_NAME, " +
-																										   "BUILD_ID, " +
-																										   "BUILD_NUMBER, " +
-																										   "MODULE_NAME, " +
-																										   "TOTAL_COUNT, " +
-																										   "PASS_COUNT, " +
-																										   "FAIL_COUNT, " +
-																										   "ERROR_COUNT, " +
-																										   "SKIP_COUNT, " +
-																										   "START_TIME, " +
-																										   "DURATION " + 
-																										   ") " +
-																								  "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";	
+
 //@formatter:on	
 	private static final Logger LOGGER = Logger.getLogger(JUnitDB.class.getName());
 
@@ -579,6 +617,9 @@ public class JUnitDB {
 			query = JUNIT_MODULE_SUMMARY_TABLE_CREATE_QUERY;
 			s.execute(query);
 
+			query = JUNIT_PACKAGE_SUMMARY_TABLE_CREATE_QUERY;
+			s.execute(query);
+
 			connection.commit();
 		}
 		finally {
@@ -603,7 +644,11 @@ public class JUnitDB {
 			s.execute(JUNIT_TESTS_TABLE_INDEX_11);
 			s.execute(JUNIT_TESTS_TABLE_INDEX_12);
 
-			s.execute(JUNIT_MODULE_SUMMARY_TABLE_INDEX_1);
+			s.execute(JUNIT_INDEX_UNIQUE_MODULE_SUMMARY_TABLE_1);
+			s.execute(JUNIT_INDEX_MODULE_SUMMARY_TABLE_1);
+
+			s.execute(JUNIT_INDEX_UNIQUE_PACKAGE_SUMMARY_TABLE_1);
+			s.execute(JUNIT_INDEX_PACKAGE_SUMMARY_TABLE_1);
 		}
 		finally {
 			connection.rollback();
@@ -635,41 +680,6 @@ public class JUnitDB {
 	public JUnitDB(String databaseDir) throws SQLException {
 		this.databaseDir = databaseDir;
 		initDB();
-	}
-
-	public void insertModuleSummary(JUnitSummaryInfo moduleSummary) throws SQLException {
-		List<JUnitSummaryInfo> moduleSummaries = new ArrayList<JUnitSummaryInfo>();
-		moduleSummaries.add(moduleSummary);
-		insertModuleSummaries(moduleSummaries);
-	}
-
-	public void insertModuleSummaries(List<JUnitSummaryInfo> moduleSummaries) throws SQLException {
-		if(moduleSummaries != null && !moduleSummaries.isEmpty()) {
-			Connection connection = getConnection();
-			PreparedStatement pS = connection.prepareStatement(JUNIT_MODULE_SUMMARY_TABLE_INSERT_QUERY);
-			try {
-				for(JUnitSummaryInfo moduleSummary: moduleSummaries) {
-					pS.setString(1, moduleSummary.getProjectName());
-					pS.setString(2, moduleSummary.getBuildId());
-					pS.setInt(3, moduleSummary.getBuildNumber());
-					pS.setString(4, moduleSummary.getModuleName());
-					pS.setLong(5, moduleSummary.getTotalCount());
-					pS.setLong(6, moduleSummary.getPassCount());
-					pS.setLong(7, moduleSummary.getFailCount());
-					pS.setLong(8, moduleSummary.getErrorCount());
-					pS.setLong(9, moduleSummary.getSkipCount());
-					pS.setTimestamp(10, new Timestamp(moduleSummary.getStartTime()));
-					pS.setLong(11, moduleSummary.getDuration());
-					pS.executeUpdate();
-				}
-				connection.commit();
-			}
-			finally {
-				pS.close();
-				connection.rollback();
-				connection.close();
-			}
-		}
 	}
 
 	public void insertTest(JUnitTestInfo test) throws SQLException {
@@ -1343,11 +1353,32 @@ public class JUnitDB {
 		return result;
 	}
 
-	public JUnitSummaryInfo summarizeTestPackageForBuild(int buildNumber, String projectName, String moduleName, String packageName) throws SQLException {
+	public void summarizeTestPackagesForBuild(int buildNumber, String projectName, String moduleName) throws SQLException {
+		Connection connection = getConnection();
+		try {
+			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_SUMMARIZE_TEST_PACKAGES_FOR_BUILD_QUERY);
+			try {
+				pS.setInt(1, buildNumber);
+				pS.setString(2, projectName);
+				pS.setString(3, moduleName);
+				pS.executeUpdate();
+			}
+			finally {
+				pS.close();
+			}
+			connection.commit();
+		}
+		finally {
+			connection.rollback();
+			connection.close();
+		}
+	}
+
+	public JUnitSummaryInfo fetchTestPackageSummaryForBuild(int buildNumber, String projectName, String moduleName, String packageName) throws SQLException {
 		JUnitSummaryInfo result = null;
 		Connection connection = getConnection();
 		try {
-			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_SUMMARIZE_TEST_PACKAGE_FOR_BUILD_QUERY);
+			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_FETCH_TEST_PACKAGE_SUMMARY_FOR_BUILD_QUERY);
 			try {
 				pS.setInt(1, buildNumber);
 				pS.setString(2, projectName);
@@ -1377,11 +1408,11 @@ public class JUnitDB {
 		return result;
 	}
 
-	public JUnitSummaryInfo summarizeTestPackageForBuildPriorTo(int buildNumber, String projectName, String moduleName, String packageName) throws SQLException {
+	public JUnitSummaryInfo fetchTestPackageSummaryForBuildPriorTo(int buildNumber, String projectName, String moduleName, String packageName) throws SQLException {
 		JUnitSummaryInfo result = null;
 		Connection connection = getConnection();
 		try {
-			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_SUMMARIZE_TEST_PACKAGE_FOR_BUILD_PRIOR_TO_QUERY);
+			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_FETCH_TEST_PACKAGE_SUMMARY_FOR_BUILD_PRIOR_TO_QUERY);
 			try {
 				pS.setInt(1, buildNumber);
 				pS.setString(2, projectName);
@@ -1470,8 +1501,7 @@ public class JUnitDB {
 		return result;
 	}
 
-	public JUnitSummaryInfo summarizeTestModuleForBuild(int buildNumber, String projectName, String moduleName) throws SQLException {
-		JUnitSummaryInfo result = null;
+	public void summarizeTestModuleForBuild(int buildNumber, String projectName, String moduleName) throws SQLException {
 		Connection connection = getConnection();
 		try {
 			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_SUMMARIZE_TEST_MODULE_FOR_BUILD_QUERY);
@@ -1480,16 +1510,8 @@ public class JUnitDB {
 				pS.setString(2, projectName);
 				pS.setString(3, moduleName);
 
-				ResultSet rS = pS.executeQuery();
-				try {
-					List<JUnitSummaryInfo> junitSummaryInfoList = readSummary(rS, 1);
-					if(!junitSummaryInfoList.isEmpty()) {
-						result = junitSummaryInfoList.get(0);
-					}
-				}
-				finally {
-					rS.close();
-				}
+				pS.executeUpdate();
+
 			}
 			finally {
 				pS.close();
@@ -1500,7 +1522,6 @@ public class JUnitDB {
 			connection.rollback();
 			connection.close();
 		}
-		return result;
 	}
 
 	public JUnitSummaryInfo fetchTestModuleSummaryForBuildPriorTo(int buildNumber, String projectName, String moduleName) throws SQLException {
@@ -1536,11 +1557,44 @@ public class JUnitDB {
 		return result;
 	}
 
-	public JUnitSummaryInfo summarizeTestModuleForBuildNoLaterThan(int buildNumber, String projectName, String moduleName) throws SQLException {
+	public JUnitSummaryInfo fetchTestModuleSummaryForBuild(int buildNumber, String projectName, String moduleName) throws SQLException {
 		JUnitSummaryInfo result = null;
 		Connection connection = getConnection();
 		try {
-			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_SUMMARIZE_TEST_MODULE_FOR_BUILD_NO_LATER_THAN_QUERY);
+			PreparedStatement pS = connection.prepareStatement(JUNIT_FETCH_TEST_MODULE_SUMMARY_FOR_BUILD_QUERY);
+			try {
+				pS.setInt(1, buildNumber);
+				pS.setString(2, projectName);
+				pS.setString(3, moduleName);
+
+				ResultSet rS = pS.executeQuery();
+				try {
+					List<JUnitSummaryInfo> junitSummaryInfoList = readSummary(rS, 1);
+					if(!junitSummaryInfoList.isEmpty()) {
+						result = junitSummaryInfoList.get(0);
+					}
+				}
+				finally {
+					rS.close();
+				}
+			}
+			finally {
+				pS.close();
+			}
+			connection.commit();
+		}
+		finally {
+			connection.rollback();
+			connection.close();
+		}
+		return result;
+	}
+
+	public JUnitSummaryInfo fetchTestModuleSummaryForBuildNoLaterThan(int buildNumber, String projectName, String moduleName) throws SQLException {
+		JUnitSummaryInfo result = null;
+		Connection connection = getConnection();
+		try {
+			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_FETCH_TEST_MODULE_SUMMARY_FOR_BUILD_NO_LATER_THAN_QUERY);
 			try {
 				pS.setInt(1, buildNumber);
 				pS.setString(2, projectName);

@@ -57,7 +57,7 @@ public class ProjectResultBuildAction extends AbstractTestResultAction<ProjectRe
 	 */
 	@Override
 	public int getFailCount() {
-		return (int)getSummary().getFailCount();
+		return (int)(getSummary().getFailCount() + getSummary().getErrorCount());
 	}
 
 	/**

@@ -105,7 +105,7 @@ public class ProjectResult extends MetaTabulatedResult {
 		ModuleResult result = getModuleResultFromCache(moduleName);
 		if(result == null) {
 			try {
-				JUnitSummaryInfo junitSummaryInfo = junitDB.summarizeTestModuleForBuildNoLaterThan(summary.getBuildNumber(), summary.getProjectName(), moduleName);
+				JUnitSummaryInfo junitSummaryInfo = junitDB.fetchTestModuleSummaryForBuildNoLaterThan(summary.getBuildNumber(), summary.getProjectName(), moduleName);
 
 				if(junitSummaryInfo != null) {
 					result = new ModuleResult(this, junitSummaryInfo);
@@ -434,7 +434,7 @@ public class ProjectResult extends MetaTabulatedResult {
 			for(String moduleName: moduleNames) {
 				ModuleResult testResult = getModuleResultFromCache(moduleName);
 				if(testResult == null && !isModuleResultEmpty(moduleName)) {
-					JUnitSummaryInfo junitSummaryInfo = junitDB.summarizeTestModuleForBuildNoLaterThan(build.getNumber(), build.getProject().getName(), moduleName);
+					JUnitSummaryInfo junitSummaryInfo = junitDB.fetchTestModuleSummaryForBuildNoLaterThan(build.getNumber(), build.getProject().getName(), moduleName);
 
 					if(junitSummaryInfo != null) {
 						testResult = new ModuleResult(this, junitSummaryInfo);

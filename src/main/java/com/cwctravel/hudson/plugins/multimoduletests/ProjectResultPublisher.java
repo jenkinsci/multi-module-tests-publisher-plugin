@@ -229,16 +229,11 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 				}
 				summary = junitDB.summarizeTestProjectForBuildNoLaterThan(buildNumber, projectName);
 
-				List<JUnitSummaryInfo> moduleSummaries = new ArrayList<JUnitSummaryInfo>();
 				for(String moduleName: moduleNames) {
-					JUnitSummaryInfo moduleSummary = junitDB.summarizeTestModuleForBuild(buildNumber, projectName, moduleName);
-					if(moduleSummary != null) {
-						moduleSummaries.add(moduleSummary);
-					}
+					junitDB.summarizeTestModuleForBuild(buildNumber, projectName, moduleName);
+					junitDB.summarizeTestPackagesForBuild(buildNumber, projectName, moduleName);
+
 				}
-
-				junitDB.insertModuleSummaries(moduleSummaries);
-
 			}
 			catch(SAXException sAE) {
 				throw new IOException(sAE);
