@@ -27,12 +27,12 @@ import static java.util.Collections.emptyList;
 import hudson.model.AbstractBuild;
 import hudson.model.Run;
 import hudson.tasks.junit.TestAction;
-import hudson.tasks.junit.History;
 import hudson.tasks.test.TestObject;
 import hudson.tasks.test.TestResult;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.lang.ref.WeakReference;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Collections;
@@ -63,9 +63,10 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 
 	private int failedSince;
 
+	private final JUnitDB junitDB;
 	private final TestObject parent;
 
-	private final JUnitDB junitDB;
+	private WeakReference<History> historyReference;
 
 	private final JUnitTestInfo testInfo;
 	private JUnitTestInfo previousTestInfo;
@@ -549,8 +550,13 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	}
 
 	@Override
-	public History getHistory() {
-		return new com.cwctravel.hudson.plugins.multimoduletests.junit.History(this, 5000);
+	public hudson.tasks.junit.History getHistory() {
+		History history = null;
+		if(historyReference == null || (history = historyReference.get()) == null) {
+			history = new History(this, 5000);
+			historyReference = new WeakReference<History>(history);
+		}
+		return history;
 	}
 
 	/**

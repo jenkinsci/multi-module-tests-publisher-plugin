@@ -121,6 +121,18 @@ public class History extends hudson.tasks.junit.History {
 		return historyItems != null && historyItems.size() > 1;
 	}
 
+	public int getCount() {
+		return historyItems.size();
+	}
+
+	public List<JUnitSummaryInfo> getItems(int startIndex, int endIndex) {
+		List<JUnitSummaryInfo> result = null;
+		if(historyItems != null) {
+			result = historyItems.subList(startIndex, historyItems.size() > endIndex ? endIndex : historyItems.size());
+		}
+		return result;
+	}
+
 	/**
 	 * Graph of duration of tests over time.
 	 */

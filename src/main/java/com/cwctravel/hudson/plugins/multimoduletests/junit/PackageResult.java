@@ -26,10 +26,10 @@ package com.cwctravel.hudson.plugins.multimoduletests.junit;
 import hudson.model.AbstractBuild;
 import hudson.model.Run;
 import hudson.tasks.junit.TestAction;
-import hudson.tasks.junit.History;
 import hudson.tasks.test.MetaTabulatedResult;
 import hudson.tasks.test.TestObject;
 
+import java.lang.ref.WeakReference;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -61,6 +61,8 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 
 	private final JUnitDB junitDB;
 	private final TestObject parent;
+
+	private WeakReference<History> historyReference;
 
 	private final JUnitSummaryInfo summary;
 	private JUnitSummaryInfo previousSummary;
@@ -418,7 +420,12 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 	}
 
 	@Override
-	public History getHistory() {
-		return new com.cwctravel.hudson.plugins.multimoduletests.junit.History(this, 5000);
+	public hudson.tasks.junit.History getHistory() {
+		History history = null;
+		if(historyReference == null || (history = historyReference.get()) == null) {
+			history = new History(this, 5000);
+			historyReference = new WeakReference<History>(history);
+		}
+		return history;
 	}
 }

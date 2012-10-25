@@ -69,7 +69,7 @@ THE SOFTWARE.
 	      		<a href="${app.rootUrl}${it.testObject.owner.url}testReport${it.testObject.url}/history${(start-25)>0?'?start='+(start-25):''}">${%Newer}</a>
 	      </j:if>
 	       
-	      <j:if test="${it.testObject.owner.project.builds.size() > end}">
+	      <j:if test="${it.count > end}">
 	      		<a href="${app.rootUrl}${it.testObject.owner.url}testReport${it.testObject.url}/history?start=${end+1}">${%Older}</a>
 	      </j:if>
       	</div>

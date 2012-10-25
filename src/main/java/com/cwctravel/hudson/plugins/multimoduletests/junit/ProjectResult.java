@@ -4,11 +4,11 @@ import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.Run;
 import hudson.tasks.junit.TestAction;
-import hudson.tasks.junit.History;
 import hudson.tasks.test.AbstractTestResultAction;
 import hudson.tasks.test.MetaTabulatedResult;
 import hudson.tasks.test.TestObject;
 
+import java.lang.ref.WeakReference;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -49,6 +49,7 @@ public class ProjectResult extends MetaTabulatedResult {
 
 	private JUnitMetricsInfo metrics;
 
+	private transient WeakReference<History> historyReference;
 	private transient Map<String, ModuleResult> moduleResultMap;
 	private transient Set<String> emptyModuleResults;
 
@@ -539,8 +540,13 @@ public class ProjectResult extends MetaTabulatedResult {
 	}
 
 	@Override
-	public History getHistory() {
-		return new com.cwctravel.hudson.plugins.multimoduletests.junit.History(this, 5000);
+	public hudson.tasks.junit.History getHistory() {
+		History history = null;
+		if(historyReference == null || (history = historyReference.get()) == null) {
+			history = new History(this, 5000);
+			historyReference = new WeakReference<History>(history);
+		}
+		return history;
 	}
 
 	public String getRootUrl(String urlName) {
