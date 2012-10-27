@@ -23,7 +23,7 @@ THE SOFTWARE.
 -->
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define"
          xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-    <j:set var="start" value="${request.getParameter('start')?:0}"/>
+    <j:set var="start" value="${request.getParameter('start')? request.getParameter('start') + 0: 0}"/>
 	<j:set var="end" value="${request.getParameter('end')?:start+25}"/>     
     <table class="pane sortable" id="testresult">
       <tr>
