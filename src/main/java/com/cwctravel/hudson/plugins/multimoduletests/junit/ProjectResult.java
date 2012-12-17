@@ -367,7 +367,7 @@ public class ProjectResult extends MetaTabulatedResult {
 	public List<CaseResult> getFailedTests() {
 		try {
 			List<CaseResult> result = new ArrayList<CaseResult>();
-			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByProject(summary.getProjectName(), summary.getBuildId());
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByProject(summary.getProjectName(), summary.getBuildNumber());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_FAIL || junitTestInfo.getStatus() == JUnitTestInfo.STATUS_ERROR) {
 					ModuleResult testResult = new ModuleResult(this, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_MODULE, junitDB, junitTestInfo));
@@ -388,7 +388,7 @@ public class ProjectResult extends MetaTabulatedResult {
 	public List<CaseResult> getSkippedTests() {
 		try {
 			List<CaseResult> result = new ArrayList<CaseResult>();
-			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByProject(summary.getProjectName(), summary.getBuildId());
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByProject(summary.getProjectName(), summary.getBuildNumber());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SKIP) {
 					ModuleResult testResult = new ModuleResult(this, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_MODULE, junitDB, junitTestInfo));
@@ -409,7 +409,7 @@ public class ProjectResult extends MetaTabulatedResult {
 	public List<CaseResult> getPassedTests() {
 		try {
 			List<CaseResult> result = new ArrayList<CaseResult>();
-			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByProject(summary.getProjectName(), summary.getBuildId());
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByProject(summary.getProjectName(), summary.getBuildNumber());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SUCCESS) {
 					ModuleResult testResult = new ModuleResult(this, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_MODULE, junitDB, junitTestInfo));

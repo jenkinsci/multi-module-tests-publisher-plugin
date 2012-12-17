@@ -63,6 +63,7 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 	private final TestObject parent;
 
 	private WeakReference<History> historyReference;
+	private WeakReference<List<ClassResult>> childrenReference;
 
 	private final JUnitSummaryInfo summary;
 	private JUnitSummaryInfo previousSummary;
@@ -277,19 +278,34 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 		return null;
 	}
 
+	private List<ClassResult> getCachedChildren() {
+		if(childrenReference != null) {
+			return childrenReference.get();
+		}
+		return null;
+	}
+
+	private void cacheChildren(List<ClassResult> children) {
+		childrenReference = new WeakReference<List<ClassResult>>(children);
+	}
+
 	@Override
 	@Exported(name = "child")
 	public Collection<ClassResult> getChildren() {
-		List<ClassResult> result = new ArrayList<ClassResult>();
-		try {
-			List<JUnitSummaryInfo> junitSummaryInfoList = junitDB.fetchTestPackageChildrenForBuild(summary.getBuildNumber(), summary.getProjectName(), summary.getModuleName(), summary.getPackageName());
-			for(JUnitSummaryInfo junitSummaryInfo: junitSummaryInfoList) {
-				ClassResult classResult = new ClassResult(this, junitSummaryInfo);
-				result.add(classResult);
+		List<ClassResult> result = getCachedChildren();
+		if(result == null) {
+			try {
+				result = new ArrayList<ClassResult>();
+				List<JUnitSummaryInfo> junitSummaryInfoList = junitDB.fetchTestPackageChildrenForBuild(summary.getBuildNumber(), summary.getProjectName(), summary.getModuleName(), summary.getPackageName());
+				for(JUnitSummaryInfo junitSummaryInfo: junitSummaryInfoList) {
+					ClassResult classResult = new ClassResult(this, junitSummaryInfo);
+					result.add(classResult);
+				}
+				cacheChildren(result);
 			}
-		}
-		catch(SQLException sE) {
-			throw new JUnitException(sE);
+			catch(SQLException sE) {
+				throw new JUnitException(sE);
+			}
 		}
 		return result;
 	}
@@ -306,7 +322,7 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 	public List<CaseResult> getFailedTests() {
 		try {
 			List<CaseResult> result = new ArrayList<CaseResult>();
-			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByPackage(summary.getProjectName(), summary.getBuildId(), summary.getModuleName(), summary.getPackageName());
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByPackage(summary.getProjectName(), summary.getBuildNumber(), summary.getModuleName(), summary.getPackageName());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_FAIL || junitTestInfo.getStatus() == JUnitTestInfo.STATUS_ERROR) {
 					ClassResult classResult = new ClassResult(this, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_CLASS, junitDB, junitTestInfo));
@@ -325,7 +341,7 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 	public List<CaseResult> getSkippedTests() {
 		try {
 			List<CaseResult> result = new ArrayList<CaseResult>();
-			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByPackage(summary.getProjectName(), summary.getBuildId(), summary.getModuleName(), summary.getPackageName());
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByPackage(summary.getProjectName(), summary.getBuildNumber(), summary.getModuleName(), summary.getPackageName());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SKIP) {
 					ClassResult classResult = new ClassResult(this, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_CLASS, junitDB, junitTestInfo));
@@ -344,7 +360,7 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 	public List<CaseResult> getPassedTests() {
 		try {
 			List<CaseResult> result = new ArrayList<CaseResult>();
-			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByPackage(summary.getProjectName(), summary.getBuildId(), summary.getModuleName(), summary.getPackageName());
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByPackage(summary.getProjectName(), summary.getBuildNumber(), summary.getModuleName(), summary.getPackageName());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SUCCESS) {
 					ClassResult classResult = new ClassResult(this, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_CLASS, junitDB, junitTestInfo));

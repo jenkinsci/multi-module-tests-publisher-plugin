@@ -35,7 +35,9 @@ import java.lang.ref.WeakReference;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -68,6 +70,8 @@ public final class ModuleResult extends MetaTabulatedResult {
 	private final JUnitDB junitDB;
 
 	private WeakReference<History> historyReference;
+	private WeakReference<List<PackageResult>> childrenReference;
+	private WeakReference<Map<String, PackageResult>> packageResultMapReference;
 
 	private final JUnitSummaryInfo summary;
 	private JUnitSummaryInfo previousSummary;
@@ -274,7 +278,7 @@ public final class ModuleResult extends MetaTabulatedResult {
 	public List<CaseResult> getFailedTests() {
 		try {
 			List<CaseResult> result = new ArrayList<CaseResult>();
-			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByModule(summary.getProjectName(), summary.getBuildId(), summary.getModuleName());
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByModule(summary.getProjectName(), summary.getBuildNumber(), summary.getModuleName());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_FAIL || junitTestInfo.getStatus() == JUnitTestInfo.STATUS_ERROR) {
 					PackageResult packageResult = new PackageResult(this, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_PACKAGE, junitDB, junitTestInfo));
@@ -299,7 +303,7 @@ public final class ModuleResult extends MetaTabulatedResult {
 	public Collection<? extends hudson.tasks.test.TestResult> getPassedTests() {
 		try {
 			List<CaseResult> result = new ArrayList<CaseResult>();
-			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByModule(summary.getProjectName(), summary.getBuildId(), summary.getModuleName());
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByModule(summary.getProjectName(), summary.getBuildNumber(), summary.getModuleName());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SUCCESS) {
 					PackageResult packageResult = new PackageResult(this, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_PACKAGE, junitDB, junitTestInfo));
@@ -324,7 +328,7 @@ public final class ModuleResult extends MetaTabulatedResult {
 	public Collection<? extends hudson.tasks.test.TestResult> getSkippedTests() {
 		try {
 			List<CaseResult> result = new ArrayList<CaseResult>();
-			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByModule(summary.getProjectName(), summary.getBuildId(), summary.getModuleName());
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByModule(summary.getProjectName(), summary.getBuildNumber(), summary.getModuleName());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SKIP) {
 					PackageResult packageResult = new PackageResult(this, new LazyJUnitSummaryInfo(LazyJUnitSummaryInfo.SUMMARY_TYPE_PACKAGE, junitDB, junitTestInfo));
@@ -465,14 +469,29 @@ public final class ModuleResult extends MetaTabulatedResult {
 		return(getFailCount() == 0);
 	}
 
+	private List<PackageResult> getCachedChildren() {
+		if(childrenReference != null) {
+			return childrenReference.get();
+		}
+		return null;
+	}
+
+	private void cacheChildren(List<PackageResult> children) {
+		childrenReference = new WeakReference<List<PackageResult>>(children);
+	}
+
 	@Override
 	public Collection<PackageResult> getChildren() {
 		try {
-			List<PackageResult> result = new ArrayList<PackageResult>();
-			List<JUnitSummaryInfo> junitSummaryInfoList = junitDB.fetchTestModuleChildrenForBuild(summary.getBuildNumber(), summary.getProjectName(), summary.getModuleName());
-			for(JUnitSummaryInfo summaryInfo: junitSummaryInfoList) {
-				PackageResult packageResult = new PackageResult(this, summaryInfo);
-				result.add(packageResult);
+			List<PackageResult> result = getCachedChildren();
+			if(result == null) {
+				result = new ArrayList<PackageResult>();
+				List<JUnitSummaryInfo> junitSummaryInfoList = junitDB.fetchTestModuleChildrenForBuild(summary.getBuildNumber(), summary.getProjectName(), summary.getModuleName());
+				for(JUnitSummaryInfo summaryInfo: junitSummaryInfoList) {
+					PackageResult packageResult = new PackageResult(this, summaryInfo);
+					result.add(packageResult);
+				}
+				cacheChildren(result);
 			}
 
 			return result;
@@ -510,12 +529,40 @@ public final class ModuleResult extends MetaTabulatedResult {
 		}
 	}
 
+	private PackageResult getCachedPackageResult(String packageName) {
+		if(packageResultMapReference != null) {
+			Map<String, PackageResult> packageResultMap = packageResultMapReference.get();
+			if(packageResultMap != null) {
+				return packageResultMap.get(packageName);
+			}
+		}
+		return null;
+	}
+
+	private void cachePackageResult(PackageResult packageResult) {
+		if(packageResultMapReference == null) {
+			packageResultMapReference = new WeakReference<Map<String, PackageResult>>(new HashMap<String, PackageResult>());
+		}
+
+		Map<String, PackageResult> packageResultMap = packageResultMapReference.get();
+		if(packageResultMap == null) {
+			packageResultMap = new HashMap<String, PackageResult>();
+			packageResultMapReference = new WeakReference<Map<String, PackageResult>>(packageResultMap);
+		}
+
+		packageResultMap.put(packageResult.getName(), packageResult);
+	}
+
 	public PackageResult byPackage(String packageName) {
 		try {
-			PackageResult result = null;
-			JUnitSummaryInfo junitSummaryInfo = junitDB.fetchTestPackageSummaryForBuild(summary.getBuildNumber(), summary.getProjectName(), summary.getModuleName(), packageName);
-			if(junitSummaryInfo != null) {
-				result = new PackageResult(this, junitSummaryInfo);
+			PackageResult result = getCachedPackageResult(packageName);
+			if(result == null) {
+				JUnitSummaryInfo junitSummaryInfo = junitDB.fetchTestPackageSummaryForBuild(summary.getBuildNumber(), summary.getProjectName(), summary.getModuleName(), packageName);
+				if(junitSummaryInfo != null) {
+					result = new PackageResult(this, junitSummaryInfo);
+					cachePackageResult(result);
+				}
+
 			}
 			return result;
 		}

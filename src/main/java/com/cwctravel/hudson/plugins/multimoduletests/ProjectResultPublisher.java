@@ -15,6 +15,7 @@ import hudson.model.Saveable;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.Descriptor;
+import hudson.model.Run;
 import hudson.remoting.VirtualChannel;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
@@ -111,8 +112,14 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 
 		File junitDBDir = build.getProject().getRootDir();
 		String testResultFileMask = Util.replaceMacro(config.getTestResultFileMask(), build.getBuildVariableResolver());
+		
+		List<String> activeBuildIds = new ArrayList<String>();
+		for(Run<?, ?> run: build.getProject().getBuilds()) {
+			activeBuildIds.add(run.getId());
+		}
+
 		String moduleNames = Util.replaceMacro(config.getModuleNames(), build.getBuildVariableResolver());
-		build.getWorkspace().act(new ParseResultCallable(junitDBDir, build.getId(), build.getNumber(), build.getProject().getName(), moduleNames, testResultFileMask, buildTime, nowMaster, config.isKeepLongStdio()));
+		build.getWorkspace().act(new ParseResultCallable(junitDBDir, build.getId(), build.getNumber(), build.getProject().getName(), moduleNames, activeBuildIds, testResultFileMask, buildTime, nowMaster, config.isKeepLongStdio()));
 
 		ProjectResultBuildAction action = new ProjectResultBuildAction(build, moduleNames, listener);
 		ProjectResult projectResult = action.getResult();
@@ -175,13 +182,14 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 
 		private final String buildId;
 		private final String projectName;
-		private final List<String> moduleNames;
 		private final String testResults;
+		private final List<String> moduleNames;
+		private final List<String> activeBuildIds;
 
 		private final File junitDBDir;
 
-		private ParseResultCallable(File junitDBDir, String buildId, int buildNumber, String projectName, String moduleNamesStr, String testResults,
-				long buildTime, long nowMaster, boolean keepLongStdio) {
+		private ParseResultCallable(File junitDBDir, String buildId, int buildNumber, String projectName, String moduleNamesStr, List<String> activeBuildIds,
+				String testResults, long buildTime, long nowMaster, boolean keepLongStdio) {
 			this.buildId = buildId;
 			this.buildNumber = buildNumber;
 			this.projectName = projectName;
@@ -203,6 +211,11 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 					}
 				}
 			}
+			
+			this.activeBuildIds = new ArrayList<String>();
+			if(activeBuildIds != null) {
+				this.activeBuildIds.addAll(activeBuildIds);
+			}
 		}
 
 		public Void invoke(File ws, VirtualChannel channel) throws IOException, InterruptedException {
@@ -214,6 +227,8 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 
 			try {
 				JUnitDB junitDB = new JUnitDB(junitDBDir.getAbsolutePath());
+				junitDB.compactDB(projectName, activeBuildIds);
+
 				JUnitParser junitParser = new JUnitParser(junitDB);
 				for(String value: includedFiles) {
 					File reportFile = new File(baseDir, value);

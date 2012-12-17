@@ -21,7 +21,15 @@ import java.util.logging.Logger;
 import com.cwctravel.hudson.plugins.multimoduletests.junit.io.ReaderWriter;
 
 public class JUnitDB {
-	//@formatter:off	
+	//@formatter:off
+	private static final String COMPACT_JUNIT_PACKAGE_SUMMARY_QUERY = "DELETE FROM JUNIT_PACKAGE_SUMMARY WHERE PROJECT_NAME = ? AND BUILD_ID NOT IN (SELECT BUILD_ID FROM JUNIT_ACTIVE_BUILDS WHERE PROJECT_NAME = ?)";
+	private static final String COMPACT_JUNIT_MODULE_SUMMARY_QUERY = "DELETE FROM JUNIT_MODULE_SUMMARY WHERE PROJECT_NAME = ? AND BUILD_ID NOT IN (SELECT BUILD_ID FROM JUNIT_ACTIVE_BUILDS WHERE PROJECT_NAME = ?)";
+	private static final String COMPACT_JUNIT_PROJECT_SUMMARY_QUERY = "DELETE FROM JUNIT_PROJECT_SUMMARY WHERE PROJECT_NAME = ? AND BUILD_ID NOT IN (SELECT BUILD_ID FROM JUNIT_ACTIVE_BUILDS WHERE PROJECT_NAME = ?)";
+	private static final String COMPACT_JUNIT_TESTS_QUERY = "DELETE FROM JUNIT_TESTS WHERE PROJECT_NAME = ? AND BUILD_ID NOT IN (SELECT BUILD_ID FROM JUNIT_ACTIVE_BUILDS WHERE PROJECT_NAME = ?)";
+	
+	
+	private static final String CLEAR_JUNIT_ACTIVE_BUILDS_QUERY = "DELETE FROM JUNIT_ACTIVE_BUILDS WHERE PROJECT_NAME = ?";
+	
 	private static final String JUNIT_TESTS_SELECT_TESTCASE_DETAIL_QUERY = "SELECT ERROR_MESSAGE, ERROR_STACK_TRACE, STDOUT, STDERR FROM JUNIT_TESTS WHERE " +
 																			"BUILD_NUMBER = ? AND " +
 																			"PROJECT_NAME = ? AND " +
@@ -32,20 +40,20 @@ public class JUnitDB {
 
 	
 	
-	private static final String JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_ID_QUERY = 
-			"SELECT ID, PROJECT_NAME, BUILD_ID, BUILD_NUMBER, MODULE_NAME, PACKAGE_NAME, CLASS_NAME, CASE_NAME, INDEX, STATUS, START_TIME, DURATION FROM JUNIT_TESTS WHERE PROJECT_NAME LIKE ? AND BUILD_ID LIKE ?";
+	private static final String JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_NUMBER_QUERY = 
+			"SELECT ID, PROJECT_NAME, BUILD_ID, BUILD_NUMBER, MODULE_NAME, PACKAGE_NAME, CLASS_NAME, CASE_NAME, INDEX, STATUS, START_TIME, DURATION FROM JUNIT_TESTS WHERE PROJECT_NAME = ? AND BUILD_NUMBER = ?";
 	
-	private static final String JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_ID_MODULE_NAME_QUERY = 
-			"SELECT ID, PROJECT_NAME, BUILD_ID, BUILD_NUMBER, MODULE_NAME, PACKAGE_NAME, CLASS_NAME, CASE_NAME, INDEX, STATUS, START_TIME, DURATION FROM JUNIT_TESTS WHERE PROJECT_NAME LIKE ? AND BUILD_ID LIKE ? AND MODULE_NAME LIKE ?";
+	private static final String JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_NUMBER_MODULE_NAME_QUERY = 
+			"SELECT ID, PROJECT_NAME, BUILD_ID, BUILD_NUMBER, MODULE_NAME, PACKAGE_NAME, CLASS_NAME, CASE_NAME, INDEX, STATUS, START_TIME, DURATION FROM JUNIT_TESTS WHERE PROJECT_NAME = ? AND BUILD_NUMBER = ? AND MODULE_NAME = ?";
 	
-	private static final String JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_ID_MODULE_NAME_PACKAGE_NAME_QUERY = 
-			"SELECT ID, PROJECT_NAME, BUILD_ID, BUILD_NUMBER, MODULE_NAME, PACKAGE_NAME, CLASS_NAME, CASE_NAME, INDEX, STATUS, START_TIME, DURATION FROM JUNIT_TESTS WHERE PROJECT_NAME LIKE ? AND BUILD_ID LIKE ? AND MODULE_NAME LIKE ? AND PACKAGE_NAME LIKE ?";
+	private static final String JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_NUMBER_MODULE_NAME_PACKAGE_NAME_QUERY = 
+			"SELECT ID, PROJECT_NAME, BUILD_ID, BUILD_NUMBER, MODULE_NAME, PACKAGE_NAME, CLASS_NAME, CASE_NAME, INDEX, STATUS, START_TIME, DURATION FROM JUNIT_TESTS WHERE PROJECT_NAME = ? AND BUILD_NUMBER = ? AND MODULE_NAME = ? AND PACKAGE_NAME = ?";
 	
-	private static final String JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_ID_MODULE_NAME_PACKAGE_NAME_CLASS_NAME_QUERY =
-			"SELECT ID, PROJECT_NAME, BUILD_ID, BUILD_NUMBER, MODULE_NAME, PACKAGE_NAME, CLASS_NAME, CASE_NAME, INDEX, STATUS, START_TIME, DURATION FROM JUNIT_TESTS WHERE PROJECT_NAME LIKE ? AND BUILD_ID LIKE ? AND MODULE_NAME LIKE ? AND PACKAGE_NAME LIKE ? AND CLASS_NAME LIKE ?";
+	private static final String JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_NUMBER_MODULE_NAME_PACKAGE_NAME_CLASS_NAME_QUERY =
+			"SELECT ID, PROJECT_NAME, BUILD_ID, BUILD_NUMBER, MODULE_NAME, PACKAGE_NAME, CLASS_NAME, CASE_NAME, INDEX, STATUS, START_TIME, DURATION FROM JUNIT_TESTS WHERE PROJECT_NAME = ? AND BUILD_NUMBER = ? AND MODULE_NAME = ? AND PACKAGE_NAME = ? AND CLASS_NAME = ?";
 	
-	private static final String JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_ID_MODULE_NAME_CLASS_NAME_CASE_NAME_QUERY =
-			"SELECT ID, PROJECT_NAME, BUILD_ID, BUILD_NUMBER, MODULE_NAME, PACKAGE_NAME, CLASS_NAME, CASE_NAME, INDEX, STATUS, START_TIME, DURATION FROM JUNIT_TESTS WHERE PROJECT_NAME LIKE ? AND BUILD_ID LIKE ? AND MODULE_NAME LIKE ? AND PACKAGE_NAME LIKE ? AND CLASS_NAME LIKE ? AND CASE_NAME LIKE ?";
+	private static final String JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_NUMBER_MODULE_NAME_CLASS_NAME_CASE_NAME_QUERY =
+			"SELECT ID, PROJECT_NAME, BUILD_ID, BUILD_NUMBER, MODULE_NAME, PACKAGE_NAME, CLASS_NAME, CASE_NAME, INDEX, STATUS, START_TIME, DURATION FROM JUNIT_TESTS WHERE PROJECT_NAME = ? AND BUILD_NUMBER = ? AND MODULE_NAME = ? AND PACKAGE_NAME = ? AND CLASS_NAME = ? AND CASE_NAME = ?";
 
 	private static final String JUNIT_TESTS_SELECT_BY_PROJECT_NAME_PRIOR_BUILD_NUMBER_MODULE_NAME_CLASS_NAME_CASE_NAME_QUERY =
 			"SELECT ID, PROJECT_NAME, BUILD_ID, BUILD_NUMBER, MODULE_NAME, PACKAGE_NAME, CLASS_NAME, CASE_NAME, INDEX, STATUS, START_TIME, DURATION FROM JUNIT_TESTS WHERE BUILD_NUMBER < ? AND PROJECT_NAME LIKE ? AND  AND MODULE_NAME LIKE ? AND PACKAGE_NAME LIKE ? AND CLASS_NAME LIKE ? AND CASE_NAME LIKE ? FETCH FIRST ROW ONLY";
@@ -511,6 +519,10 @@ public class JUnitDB {
 			   "DURATION " +
 			   "FROM JUNIT_PROJECT_SUMMARY WHERE BUILD_NUMBER <= ? AND PROJECT_NAME = ? ORDER BY BUILD_NUMBER DESC FETCH FIRST ROW ONLY";	
 	
+	private static final String JUNIT_TESTS_FETCH_PROPERTY = "SELECT VALUE FROM JUNIT_PROPERTIES WHERE PROJECT_NAME = ? AND NAME = UPPER(?)";
+	private static final String JUNIT_TESTS_INSERT_PROPERTY = "INSERT INTO JUNIT_PROPERTIES(PROJECT_NAME, NAME, VALUE) VALUES(?, UPPER(?), ?)";
+	private static final String JUNIT_TESTS_UPDATE_PROPERTY = "UPDATE JUNIT_PROPERTIES SET VALUE = ? WHERE PROJECT_NAME = ? AND NAME = UPPER(?)";
+	
 	private static final String JUNIT_TESTS_TABLE_CREATE_QUERY = "CREATE TABLE " +
 																				"JUNIT_TESTS(ID BIGINT GENERATED ALWAYS AS IDENTITY(START WITH 100, INCREMENT BY 1), " +
 																							  "PROJECT_NAME VARCHAR(256) NOT NULL, " +
@@ -575,12 +587,23 @@ public class JUnitDB {
 						  "DURATION BIGINT " +
 						 ")";		
 	
-	private static final String JUNIT_TESTS_TABLE_INDEX_1 = "CREATE INDEX IDX_JUNIT_TESTS_1 ON JUNIT_TESTS(BUILD_ID, PROJECT_NAME, MODULE_NAME, PACKAGE_NAME, CLASS_NAME, CASE_NAME)";
-	private static final String JUNIT_TESTS_TABLE_INDEX_2 = "CREATE INDEX IDX_JUNIT_TESTS_2 ON JUNIT_TESTS(BUILD_ID, PROJECT_NAME, MODULE_NAME, PACKAGE_NAME, CLASS_NAME)";
-	private static final String JUNIT_TESTS_TABLE_INDEX_3 = "CREATE INDEX IDX_JUNIT_TESTS_3 ON JUNIT_TESTS(BUILD_ID, PROJECT_NAME, MODULE_NAME, PACKAGE_NAME)";
-	private static final String JUNIT_TESTS_TABLE_INDEX_4 = "CREATE INDEX IDX_JUNIT_TESTS_4 ON JUNIT_TESTS(BUILD_ID, PROJECT_NAME, MODULE_NAME)";
-	private static final String JUNIT_TESTS_TABLE_INDEX_5 = "CREATE INDEX IDX_JUNIT_TESTS_5 ON JUNIT_TESTS(BUILD_ID, PROJECT_NAME)";
-	private static final String JUNIT_TESTS_TABLE_INDEX_6 = "CREATE INDEX IDX_JUNIT_TESTS_6 ON JUNIT_TESTS(BUILD_ID)";
+	private static final String JUNIT_PROPERTIES_TABLE_CREATE_QUERY = "CREATE TABLE " +
+																"JUNIT_PROPERTIES(ID BIGINT GENERATED ALWAYS AS IDENTITY(START WITH 100, INCREMENT BY 1), " +
+																				 "PROJECT_NAME VARCHAR(256) NOT NULL, " +
+																				 "NAME VARCHAR(512) NOT NULL, " +
+																				 "VALUE VARCHAR(1024) NOT NULL)";
+	
+	private static final String JUNIT_ACTIVE_BUILDS_TABLE_CREATE_QUERY = "CREATE TABLE " +
+			"JUNIT_ACTIVE_BUILDS(ID BIGINT GENERATED ALWAYS AS IDENTITY(START WITH 100, INCREMENT BY 1), " +
+							 "PROJECT_NAME VARCHAR(256) NOT NULL, " +
+							 "BUILD_ID VARCHAR(256) NOT NULL)";	
+	
+	private static final String JUNIT_TESTS_TABLE_INDEX_1 = "CREATE INDEX IDX_JUNIT_TESTS_1 ON JUNIT_TESTS(BUILD_NUMBER, PROJECT_NAME, MODULE_NAME, PACKAGE_NAME, CLASS_NAME, CASE_NAME)";
+	private static final String JUNIT_TESTS_TABLE_INDEX_2 = "CREATE INDEX IDX_JUNIT_TESTS_2 ON JUNIT_TESTS(BUILD_NUMBER, PROJECT_NAME, MODULE_NAME, PACKAGE_NAME, CLASS_NAME)";
+	private static final String JUNIT_TESTS_TABLE_INDEX_3 = "CREATE INDEX IDX_JUNIT_TESTS_3 ON JUNIT_TESTS(BUILD_NUMBER, PROJECT_NAME, MODULE_NAME, PACKAGE_NAME)";
+	private static final String JUNIT_TESTS_TABLE_INDEX_4 = "CREATE INDEX IDX_JUNIT_TESTS_4 ON JUNIT_TESTS(BUILD_NUMBER, PROJECT_NAME, MODULE_NAME)";
+	private static final String JUNIT_TESTS_TABLE_INDEX_5 = "CREATE INDEX IDX_JUNIT_TESTS_5 ON JUNIT_TESTS(BUILD_NUMBER, PROJECT_NAME)";
+	private static final String JUNIT_TESTS_TABLE_INDEX_6 = "CREATE INDEX IDX_JUNIT_TESTS_6 ON JUNIT_TESTS(BUILD_NUMBER)";
 	private static final String JUNIT_TESTS_TABLE_INDEX_7 = "CREATE INDEX IDX_JUNIT_TESTS_7 ON JUNIT_TESTS(PROJECT_NAME, MODULE_NAME, PACKAGE_NAME, CLASS_NAME, CASE_NAME)";
 	private static final String JUNIT_TESTS_TABLE_INDEX_8 = "CREATE INDEX IDX_JUNIT_TESTS_8 ON JUNIT_TESTS(PROJECT_NAME, MODULE_NAME, PACKAGE_NAME, CLASS_NAME)";
 	private static final String JUNIT_TESTS_TABLE_INDEX_9 = "CREATE INDEX IDX_JUNIT_TESTS_9 ON JUNIT_TESTS(PROJECT_NAME, MODULE_NAME, PACKAGE_NAME)";
@@ -596,6 +619,8 @@ public class JUnitDB {
 	
 	private static final String JUNIT_INDEX_UNIQUE_PACKAGE_SUMMARY_TABLE_1= "CREATE UNIQUE INDEX IDXUQ_JUNIT_PACKAGE_SUMMARY_1 ON JUNIT_PACKAGE_SUMMARY(BUILD_NUMBER, PROJECT_NAME, MODULE_NAME, PACKAGE_NAME)";
 	private static final String JUNIT_INDEX_PACKAGE_SUMMARY_TABLE_1= "CREATE INDEX IDX_JUNIT_PACKAGE_SUMMARY_1 ON JUNIT_PACKAGE_SUMMARY(PROJECT_NAME, MODULE_NAME, PACKAGE_NAME)";
+	
+	private static final String JUNIT_INDEX_UNIQUE_PROPERTIES_TABLE_1= "CREATE UNIQUE INDEX IDXUQ_JUNIT_PROPERTIES_1 ON JUNIT_PROPERTIES(PROJECT_NAME, NAME)";
 	
 	private static final String JUNIT_TESTS_TABLE_INSERT_QUERY = "INSERT INTO JUNIT_TESTS(PROJECT_NAME, " +
 																						 "BUILD_ID, " +
@@ -614,7 +639,10 @@ public class JUnitDB {
 																						 "STDERR) " +
 																				  "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 	
-
+	
+private static final String JUNIT_ACTIVE_BUILDS_TABLE_INSERT_QUERY = "INSERT INTO JUNIT_ACTIVE_BUILDS(PROJECT_NAME, " +
+																						 "BUILD_ID) " +
+																				 "VALUES(?, ?)";
 //@formatter:on	
 	private static final Logger LOGGER = Logger.getLogger(JUnitDB.class.getName());
 
@@ -623,6 +651,7 @@ public class JUnitDB {
 	private Connection getConnection() throws SQLException {
 		String dbUrl = "jdbc:derby:" + databaseDir + "/JUnitDB;create=true;";
 		Connection connection = DriverManager.getConnection(dbUrl);
+		connection.setAutoCommit(false);
 		return connection;
 	}
 
@@ -654,11 +683,18 @@ public class JUnitDB {
 			query = JUNIT_PACKAGE_SUMMARY_TABLE_CREATE_QUERY;
 			s.execute(query);
 
+			query = JUNIT_PROPERTIES_TABLE_CREATE_QUERY;
+			s.execute(query);
+
+			query = JUNIT_ACTIVE_BUILDS_TABLE_CREATE_QUERY;
+			s.execute(query);
+
 			connection.commit();
 		}
 		finally {
 			connection.rollback();
 			s.close();
+
 		}
 	}
 
@@ -686,6 +722,10 @@ public class JUnitDB {
 
 			s.execute(JUNIT_INDEX_UNIQUE_PACKAGE_SUMMARY_TABLE_1);
 			s.execute(JUNIT_INDEX_PACKAGE_SUMMARY_TABLE_1);
+
+			s.execute(JUNIT_INDEX_UNIQUE_PROPERTIES_TABLE_1);
+
+			connection.commit();
 		}
 		finally {
 			connection.rollback();
@@ -708,6 +748,7 @@ public class JUnitDB {
 				}
 			}
 			finally {
+				connection.rollback();
 				rS.close();
 			}
 		}
@@ -840,14 +881,14 @@ public class JUnitDB {
 		return result;
 	}
 
-	public List<JUnitTestInfo> queryTestsByProject(String projectName, String buildId) throws SQLException {
+	public List<JUnitTestInfo> queryTestsByProject(String projectName, int buildNumber) throws SQLException {
 		List<JUnitTestInfo> result = new ArrayList<JUnitTestInfo>();
 		Connection connection = getConnection();
 		try {
-			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_ID_QUERY);
+			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_NUMBER_QUERY);
 			try {
 				pS.setString(1, projectName);
-				pS.setString(2, buildId);
+				pS.setInt(2, buildNumber);
 
 				ResultSet rS = pS.executeQuery();
 				try {
@@ -870,15 +911,15 @@ public class JUnitDB {
 
 	}
 
-	public List<JUnitTestInfo> queryTestsByModule(String projectName, String buildId, String moduleName) throws SQLException {
+	public List<JUnitTestInfo> queryTestsByModule(String projectName, int buildNumber, String moduleName) throws SQLException {
 
 		List<JUnitTestInfo> result = new ArrayList<JUnitTestInfo>();
 		Connection connection = getConnection();
 		try {
-			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_ID_MODULE_NAME_QUERY);
+			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_NUMBER_MODULE_NAME_QUERY);
 			try {
 				pS.setString(1, projectName);
-				pS.setString(2, buildId);
+				pS.setInt(2, buildNumber);
 				pS.setString(3, moduleName);
 
 				ResultSet rS = pS.executeQuery();
@@ -903,15 +944,15 @@ public class JUnitDB {
 
 	}
 
-	public List<JUnitTestInfo> queryTestsByPackage(String projectName, String buildId, String moduleName, String packageName) throws SQLException {
+	public List<JUnitTestInfo> queryTestsByPackage(String projectName, int buildNumber, String moduleName, String packageName) throws SQLException {
 
 		List<JUnitTestInfo> result = new ArrayList<JUnitTestInfo>();
 		Connection connection = getConnection();
 		try {
-			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_ID_MODULE_NAME_PACKAGE_NAME_QUERY);
+			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_NUMBER_MODULE_NAME_PACKAGE_NAME_QUERY);
 			try {
 				pS.setString(1, projectName);
-				pS.setString(2, buildId);
+				pS.setInt(2, buildNumber);
 				pS.setString(3, moduleName);
 				pS.setString(4, packageName);
 
@@ -937,15 +978,15 @@ public class JUnitDB {
 
 	}
 
-	public List<JUnitTestInfo> queryTestsByClass(String projectName, String buildId, String moduleName, String packageName, String className) throws SQLException {
+	public List<JUnitTestInfo> queryTestsByClass(String projectName, int buildNumber, String moduleName, String packageName, String className) throws SQLException {
 
 		List<JUnitTestInfo> result = new ArrayList<JUnitTestInfo>();
 		Connection connection = getConnection();
 		try {
-			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_ID_MODULE_NAME_PACKAGE_NAME_CLASS_NAME_QUERY);
+			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_NUMBER_MODULE_NAME_PACKAGE_NAME_CLASS_NAME_QUERY);
 			try {
 				pS.setString(1, projectName);
-				pS.setString(2, buildId);
+				pS.setInt(2, buildNumber);
 				pS.setString(3, moduleName);
 				pS.setString(4, packageName);
 				pS.setString(5, className);
@@ -972,15 +1013,15 @@ public class JUnitDB {
 
 	}
 
-	public JUnitTestInfo queryTestCase(String projectName, String buildId, String moduleName, String packageName, String className, String caseName) throws SQLException {
+	public JUnitTestInfo queryTestCase(String projectName, int buildNumber, String moduleName, String packageName, String className, String caseName) throws SQLException {
 
 		JUnitTestInfo result = null;
 		Connection connection = getConnection();
 		try {
-			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_ID_MODULE_NAME_CLASS_NAME_CASE_NAME_QUERY);
+			PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_SELECT_BY_PROJECT_NAME_BUILD_NUMBER_MODULE_NAME_CLASS_NAME_CASE_NAME_QUERY);
 			try {
 				pS.setString(1, projectName);
-				pS.setString(2, buildId);
+				pS.setInt(2, buildNumber);
 				pS.setString(3, moduleName);
 				pS.setString(4, packageName);
 				pS.setString(5, className);
@@ -2054,6 +2095,177 @@ public class JUnitDB {
 			connection.close();
 		}
 		return result;
+	}
+
+	public String getProperty(String projectName, String propertyName) throws SQLException {
+		String result = null;
+		if(projectName != null && propertyName != null) {
+			Connection connection = getConnection();
+			try {
+				PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_FETCH_PROPERTY);
+				try {
+					pS.setString(1, projectName);
+					pS.setString(2, propertyName);
+					ResultSet rS = pS.executeQuery();
+					if(rS.next()) {
+						result = rS.getString(1);
+					}
+				}
+				finally {
+					pS.close();
+				}
+				connection.commit();
+			}
+			finally {
+				connection.rollback();
+				connection.close();
+			}
+		}
+		return result;
+	}
+
+	public boolean hasProperty(String projectName, String propertyName) throws SQLException {
+		boolean result = false;
+		if(projectName != null && propertyName != null) {
+			Connection connection = getConnection();
+			try {
+				PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_FETCH_PROPERTY);
+				try {
+					pS.setString(1, projectName);
+					pS.setString(2, propertyName);
+					ResultSet rS = pS.executeQuery();
+					if(rS.next()) {
+						result = true;
+					}
+				}
+				finally {
+					pS.close();
+				}
+				connection.commit();
+			}
+			finally {
+				connection.rollback();
+				connection.close();
+			}
+		}
+		return result;
+	}
+
+	public void setProperty(String projectName, String propertyName, String value) throws SQLException {
+		if(projectName != null && propertyName != null) {
+			Connection connection = getConnection();
+			try {
+				if(!hasProperty(projectName, propertyName)) {
+					PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_INSERT_PROPERTY);
+					try {
+						pS.setString(1, projectName);
+						pS.setString(2, propertyName);
+						pS.setString(3, value);
+						pS.executeUpdate();
+					}
+					finally {
+						pS.close();
+					}
+				}
+				else {
+					PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_UPDATE_PROPERTY);
+					try {
+						pS.setString(1, projectName);
+						pS.setString(2, propertyName);
+						pS.setString(3, value);
+						pS.executeUpdate();
+					}
+					finally {
+						pS.close();
+					}
+				}
+				connection.commit();
+			}
+			finally {
+				connection.rollback();
+				connection.close();
+			}
+		}
+	}
+
+	public void compactDB(String projectName, List<String> activeBuildIds) throws SQLException {
+		Connection connection = getConnection();
+		try {
+			PreparedStatement pS = connection.prepareStatement(CLEAR_JUNIT_ACTIVE_BUILDS_QUERY);
+			try {
+				pS.setString(1, projectName);
+				pS.executeUpdate();
+			}
+			finally {
+				pS.close();
+			}
+			connection.commit();
+
+			if(activeBuildIds != null) {
+				pS = connection.prepareStatement(JUNIT_ACTIVE_BUILDS_TABLE_INSERT_QUERY);
+				try {
+					pS.setString(1, projectName);
+
+					for(String buildId: activeBuildIds) {
+						pS.setString(2, buildId);
+						pS.executeUpdate();
+					}
+				}
+				finally {
+					pS.close();
+				}
+			}
+			connection.commit();
+
+			pS = connection.prepareStatement(COMPACT_JUNIT_PROJECT_SUMMARY_QUERY);
+			try {
+				pS.setString(1, projectName);
+				pS.setString(2, projectName);
+				pS.executeUpdate();
+			}
+			finally {
+				pS.close();
+			}
+			connection.commit();
+
+			pS = connection.prepareStatement(COMPACT_JUNIT_MODULE_SUMMARY_QUERY);
+			try {
+				pS.setString(1, projectName);
+				pS.setString(2, projectName);
+				pS.executeUpdate();
+			}
+			finally {
+				pS.close();
+			}
+			connection.commit();
+
+			pS = connection.prepareStatement(COMPACT_JUNIT_PACKAGE_SUMMARY_QUERY);
+			try {
+				pS.setString(1, projectName);
+				pS.setString(2, projectName);
+				pS.executeUpdate();
+			}
+			finally {
+				pS.close();
+			}
+			connection.commit();
+
+			pS = connection.prepareStatement(COMPACT_JUNIT_TESTS_QUERY);
+			try {
+				pS.setString(1, projectName);
+				pS.setString(2, projectName);
+				pS.executeUpdate();
+			}
+			finally {
+				pS.close();
+			}
+			connection.commit();
+
+		}
+		finally {
+			connection.rollback();
+			connection.close();
+		}
 	}
 
 	private JUnitMetricsInfo readMetrics(ResultSet rS) throws SQLException {

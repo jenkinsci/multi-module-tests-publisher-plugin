@@ -61,6 +61,7 @@ public final class ClassResult extends TabulatedResult implements Comparable<Cla
 	private final TestObject parent;
 
 	private WeakReference<History> historyReference;
+	private WeakReference<List<CaseResult>> childrenReference;
 
 	private final JUnitSummaryInfo summary;
 	private JUnitSummaryInfo previousSummary;
@@ -153,7 +154,7 @@ public final class ClassResult extends TabulatedResult implements Comparable<Cla
 	public CaseResult getCaseResult(String name) {
 		CaseResult result = null;
 		try {
-			JUnitTestInfo junitTestInfo = junitDB.queryTestCase(summary.getProjectName(), summary.getBuildId(), summary.getModuleName(), summary.getPackageName(), summary.getClassName(), name);
+			JUnitTestInfo junitTestInfo = junitDB.queryTestCase(summary.getProjectName(), summary.getBuildNumber(), summary.getModuleName(), summary.getPackageName(), summary.getClassName(), name);
 			if(junitTestInfo != null) {
 				result = new CaseResult(this, junitTestInfo);
 			}
@@ -179,7 +180,7 @@ public final class ClassResult extends TabulatedResult implements Comparable<Cla
 	public List<CaseResult> getFailedTests() {
 		try {
 			List<CaseResult> result = new ArrayList<CaseResult>();
-			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByClass(summary.getProjectName(), summary.getBuildId(), summary.getModuleName(), summary.getPackageName(), summary.getClassName());
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByClass(summary.getProjectName(), summary.getBuildNumber(), summary.getModuleName(), summary.getPackageName(), summary.getClassName());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_FAIL || junitTestInfo.getStatus() == JUnitTestInfo.STATUS_ERROR) {
 					CaseResult caseResult = new CaseResult(this, junitTestInfo);
@@ -197,7 +198,7 @@ public final class ClassResult extends TabulatedResult implements Comparable<Cla
 	public List<CaseResult> getSkippedTests() {
 		try {
 			List<CaseResult> result = new ArrayList<CaseResult>();
-			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByClass(summary.getProjectName(), summary.getBuildId(), summary.getModuleName(), summary.getPackageName(), summary.getClassName());
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByClass(summary.getProjectName(), summary.getBuildNumber(), summary.getModuleName(), summary.getPackageName(), summary.getClassName());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SKIP) {
 					CaseResult caseResult = new CaseResult(this, junitTestInfo);
@@ -215,7 +216,7 @@ public final class ClassResult extends TabulatedResult implements Comparable<Cla
 	public List<CaseResult> getPassedTests() {
 		try {
 			List<CaseResult> result = new ArrayList<CaseResult>();
-			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByClass(summary.getProjectName(), summary.getBuildId(), summary.getModuleName(), summary.getPackageName(), summary.getClassName());
+			List<JUnitTestInfo> junitTestInfoList = junitDB.queryTestsByClass(summary.getProjectName(), summary.getBuildNumber(), summary.getModuleName(), summary.getPackageName(), summary.getClassName());
 			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
 				if(junitTestInfo.getStatus() == JUnitTestInfo.STATUS_SUCCESS) {
 					CaseResult caseResult = new CaseResult(this, junitTestInfo);
@@ -229,19 +230,34 @@ public final class ClassResult extends TabulatedResult implements Comparable<Cla
 		}
 	}
 
+	private List<CaseResult> getCachedChildren() {
+		if(childrenReference != null) {
+			return childrenReference.get();
+		}
+		return null;
+	}
+
+	private void cacheChildren(List<CaseResult> children) {
+		childrenReference = new WeakReference<List<CaseResult>>(children);
+	}
+
 	@Override
 	@Exported(name = "child")
 	public List<CaseResult> getChildren() {
-		List<CaseResult> result = new ArrayList<CaseResult>();
-		try {
-			List<JUnitTestInfo> junitTestInfoList = junitDB.fetchTestClassChildrenForBuild(summary.getBuildNumber(), summary.getProjectName(), summary.getModuleName(), summary.getPackageName(), summary.getClassName());
-			for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
-				CaseResult caseResult = new CaseResult(this, junitTestInfo);
-				result.add(caseResult);
+		List<CaseResult> result = getCachedChildren();
+		if(result == null) {
+			result = new ArrayList<CaseResult>();
+			try {
+				List<JUnitTestInfo> junitTestInfoList = junitDB.fetchTestClassChildrenForBuild(summary.getBuildNumber(), summary.getProjectName(), summary.getModuleName(), summary.getPackageName(), summary.getClassName());
+				for(JUnitTestInfo junitTestInfo: junitTestInfoList) {
+					CaseResult caseResult = new CaseResult(this, junitTestInfo);
+					result.add(caseResult);
+				}
+				cacheChildren(result);
 			}
-		}
-		catch(SQLException sE) {
-			throw new JUnitException(sE);
+			catch(SQLException sE) {
+				throw new JUnitException(sE);
+			}
 		}
 		return result;
 	}
