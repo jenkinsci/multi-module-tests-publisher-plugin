@@ -22,6 +22,13 @@
   <version>1.28-SNAPSHOT</version>
   <packaging>hpi</packaging>
   
+<distributionManagement>
+	<repository>
+		<id>maven.jenkins-ci.org</id>
+		<url>http://maven.jenkins-ci.org/content/repositories/releases/</url>
+	</repository>
+</distributionManagement>  
+  
   <scm>
     <connection>scm:git:ssh://git@github.com/jenkinsci/multi-module-tests-publisher-plugin.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/jenkinsci/multi-module-tests-publisher-plugin.git</developerConnection>
