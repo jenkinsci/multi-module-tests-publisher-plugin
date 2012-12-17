@@ -56,7 +56,11 @@ public class ProjectResultBuildAction extends AbstractTestResultAction<ProjectRe
 	 */
 	@Override
 	public int getFailCount() {
-		return (int)(getSummary().getFailCount() + getSummary().getErrorCount());
+		JUnitSummaryInfo summary = getSummary();
+		if(summary != null) {
+			return (int)(summary.getFailCount() + summary.getErrorCount());
+		}
+		return 0;
 	}
 
 	/**
@@ -66,7 +70,11 @@ public class ProjectResultBuildAction extends AbstractTestResultAction<ProjectRe
 	 */
 	@Override
 	public int getSkipCount() {
-		return (int)getSummary().getSkipCount();
+		JUnitSummaryInfo summary = getSummary();
+		if(summary != null) {
+			return (int)summary.getSkipCount();
+		}
+		return 0;
 	}
 
 	/**
@@ -74,7 +82,11 @@ public class ProjectResultBuildAction extends AbstractTestResultAction<ProjectRe
 	 */
 	@Override
 	public int getTotalCount() {
-		return (int)getSummary().getTotalCount();
+		JUnitSummaryInfo summary = getSummary();
+		if(summary != null) {
+			return (int)summary.getTotalCount();
+		}
+		return 0;
 	}
 
 	public List<TestAction> getActions(TestObject object) {
@@ -98,7 +110,7 @@ public class ProjectResultBuildAction extends AbstractTestResultAction<ProjectRe
 			JUnitDB junitDB;
 			try {
 				junitDB = new JUnitDB(owner.getProject().getRootDir().getAbsolutePath());
-				summary = junitDB.fetchTestProjectSummaryForBuildNoLaterThan(owner.getNumber(), owner.getProject().getName());
+				summary = junitDB.fetchTestProjectSummaryForBuild(owner.getNumber(), owner.getProject().getName());
 			}
 			catch(SQLException e) {
 				LOGGER.log(Level.SEVERE, e.getMessage(), e);
@@ -116,8 +128,11 @@ public class ProjectResultBuildAction extends AbstractTestResultAction<ProjectRe
 	@Override
 	public ProjectResult getResult() {
 		if(projectResult == null) {
-			projectResult = new ProjectResult(owner, getSummary(), moduleNames, "(no description)");
-			projectResult.setParentAction(this);
+			JUnitSummaryInfo summary = getSummary();
+			if(summary != null) {
+				projectResult = new ProjectResult(owner, summary, moduleNames, "(no description)");
+				projectResult.setParentAction(this);
+			}
 		}
 		return projectResult;
 	}
