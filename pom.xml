@@ -25,7 +25,7 @@
   <distributionManagement>
 	<repository>
 		<id>repo.jenkins-ci.org</id>
-		<url>http://repo.jenkins-ci.org/content/repositories/releases/</url>
+		<url>http://repo.jenkins-ci.org/repo</url>
 	</repository>
  </distributionManagement>
 
