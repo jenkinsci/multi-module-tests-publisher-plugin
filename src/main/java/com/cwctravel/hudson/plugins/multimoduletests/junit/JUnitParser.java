@@ -20,6 +20,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
+import org.apache.commons.lang.StringUtils;
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.InputSource;
@@ -298,7 +299,9 @@ public class JUnitParser implements ContentHandler {
 
 	private long parseDate(String value) {
 		try {
-			return JUNIT_DATE_FORMAT.parse(value).getTime();
+			if(!StringUtils.isBlank(value)) {
+				return JUNIT_DATE_FORMAT.parse(value).getTime();
+			}
 
 		}
 		catch(ParseException pE) {
