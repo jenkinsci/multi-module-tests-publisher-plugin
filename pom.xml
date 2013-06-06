@@ -19,7 +19,7 @@
 
 
   <artifactId>multi-module-tests-publisher</artifactId>
-  <version>1.32-SNAPSHOT</version>
+  <version>1.32</version>
   <packaging>hpi</packaging>
   
 <distributionManagement>
@@ -120,7 +120,7 @@
   									</goals>
   								</pluginExecutionFilter>
   								<action>
-  									<ignore></ignore>
+  									<ignore />
   								</action>
   							</pluginExecution>
   						</pluginExecutions>
