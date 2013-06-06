@@ -112,7 +112,7 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 
 		File junitDBDir = build.getProject().getRootDir();
 		String testResultFileMask = Util.replaceMacro(config.getTestResultFileMask(), build.getBuildVariableResolver());
-		
+
 		List<String> activeBuildIds = new ArrayList<String>();
 		for(Run<?, ?> run: build.getProject().getBuilds()) {
 			activeBuildIds.add(run.getId());
@@ -154,10 +154,12 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 		// Set build health on the basis of all configured test report groups
 		Result worstSoFar = build.getResult();
 
-		for(hudson.tasks.test.TestResult result: projectResult.getChildren()) {
-			Result thisResult = result.getBuildResult();
-			if(thisResult != null && thisResult.isWorseThan(worstSoFar)) {
-				worstSoFar = result.getBuildResult();
+		if(projectResult != null) {
+			for(hudson.tasks.test.TestResult result: projectResult.getChildren()) {
+				Result thisResult = result.getBuildResult();
+				if(thisResult != null && thisResult.isWorseThan(worstSoFar)) {
+					worstSoFar = result.getBuildResult();
+				}
 			}
 		}
 
@@ -188,8 +190,8 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 
 		private final File junitDBDir;
 
-		private ParseResultCallable(File junitDBDir, String buildId, int buildNumber, String projectName, String moduleNamesStr, List<String> activeBuildIds,
-				String testResults, long buildTime, long nowMaster, boolean keepLongStdio) {
+		private ParseResultCallable(File junitDBDir, String buildId, int buildNumber, String projectName, String moduleNamesStr,
+				List<String> activeBuildIds, String testResults, long buildTime, long nowMaster, boolean keepLongStdio) {
 			this.buildId = buildId;
 			this.buildNumber = buildNumber;
 			this.projectName = projectName;
@@ -211,7 +213,7 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 					}
 				}
 			}
-			
+
 			this.activeBuildIds = new ArrayList<String>();
 			if(activeBuildIds != null) {
 				this.activeBuildIds.addAll(activeBuildIds);
