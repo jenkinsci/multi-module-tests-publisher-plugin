@@ -1,8 +1,10 @@
 package com.cwctravel.hudson.plugins.multimoduletests.junit.db;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.sql.CallableStatement;
 import java.sql.Clob;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -17,6 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.apache.commons.io.FileUtils;
 
 import com.cwctravel.hudson.plugins.multimoduletests.junit.io.ReaderWriter;
 
@@ -648,8 +652,12 @@ private static final String JUNIT_ACTIVE_BUILDS_TABLE_INSERT_QUERY = "INSERT INT
 
 	private final String databaseDir;
 
+	private String getDatabasePath() {
+		return databaseDir + "/JUnitDB";
+	}
+
 	private Connection getConnection() throws SQLException {
-		String dbUrl = "jdbc:derby:" + databaseDir + "/JUnitDB;create=true;";
+		String dbUrl = "jdbc:derby:" + getDatabasePath() + ";create=true;";
 		Connection connection = DriverManager.getConnection(dbUrl);
 		connection.setAutoCommit(false);
 		return connection;
@@ -2260,6 +2268,32 @@ private static final String JUNIT_ACTIVE_BUILDS_TABLE_INSERT_QUERY = "INSERT INT
 				pS.close();
 			}
 			connection.commit();
+
+			long dbSize = FileUtils.sizeOfDirectory(new File(getDatabasePath()));
+			if(dbSize > 1024 * 1024 * 1024) {
+				connection.setAutoCommit(true);
+
+				CallableStatement cs = connection.prepareCall("CALL SYSCS_UTIL.SYSCS_COMPRESS_TABLE(?, ?, ?)");
+				cs.setString(1, "APP");
+				cs.setString(2, "JUNIT_TESTS");
+				cs.setShort(3, (short)1);
+				cs.execute();
+
+				cs.setString(1, "APP");
+				cs.setString(2, "JUNIT_PACKAGE_SUMMARY");
+				cs.setShort(3, (short)1);
+				cs.execute();
+
+				cs.setString(1, "APP");
+				cs.setString(2, "JUNIT_MODULE_SUMMARY");
+				cs.setShort(3, (short)1);
+				cs.execute();
+
+				cs.setString(1, "APP");
+				cs.setString(2, "JUNIT_PROJECT_SUMMARY");
+				cs.setShort(3, (short)1);
+				cs.execute();
+			}
 
 		}
 		finally {
