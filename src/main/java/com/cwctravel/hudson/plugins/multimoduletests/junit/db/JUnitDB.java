@@ -2197,6 +2197,9 @@ private static final String JUNIT_ACTIVE_BUILDS_TABLE_INSERT_QUERY = "INSERT INT
 	}
 
 	public void compactDB(String projectName, List<String> activeBuildIds) throws SQLException {
+		boolean isCompacting = false;
+		long dbSizeThreshold = 0;
+
 		Connection connection = getConnection();
 		try {
 			PreparedStatement pS = connection.prepareStatement(CLEAR_JUNIT_ACTIVE_BUILDS_QUERY);
@@ -2270,7 +2273,19 @@ private static final String JUNIT_ACTIVE_BUILDS_TABLE_INSERT_QUERY = "INSERT INT
 			connection.commit();
 
 			long dbSize = FileUtils.sizeOfDirectory(new File(getDatabasePath()));
-			if(dbSize > 1024 * 1024 * 1024) {
+
+			String dbSizeThresholdStr = getProperty("_defaultSettings_", "dbSizeThreshold");
+			if(dbSizeThresholdStr != null) {
+				try {
+					dbSizeThreshold = Long.parseLong(dbSizeThresholdStr);
+				}
+				catch(NumberFormatException nFE) {
+					LOGGER.log(Level.WARNING, nFE.getMessage(), nFE);
+				}
+			}
+
+			if(dbSize > dbSizeThreshold) {
+				isCompacting = true;
 				connection.setAutoCommit(true);
 
 				CallableStatement cs = connection.prepareCall("CALL SYSCS_UTIL.SYSCS_COMPRESS_TABLE(?, ?, ?)");
@@ -2293,12 +2308,19 @@ private static final String JUNIT_ACTIVE_BUILDS_TABLE_INSERT_QUERY = "INSERT INT
 				cs.setString(2, "JUNIT_PROJECT_SUMMARY");
 				cs.setShort(3, (short)1);
 				cs.execute();
+
 			}
 
 		}
 		finally {
 			connection.rollback();
 			connection.close();
+		}
+
+		if(isCompacting) {
+			long newDbSize = FileUtils.sizeOfDirectory(new File(getDatabasePath()));
+			dbSizeThreshold = newDbSize + 1024 * 1024 * 500;
+			setProperty("_defaultSettings_", "dbSizeThreshold", Long.toString(dbSizeThreshold));
 		}
 	}
 
