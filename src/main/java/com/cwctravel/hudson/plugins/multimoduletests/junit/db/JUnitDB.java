@@ -2318,6 +2318,7 @@ private static final String JUNIT_ACTIVE_BUILDS_TABLE_INSERT_QUERY = "INSERT INT
 		}
 
 		if(isCompacting) {
+			connection.setAutoCommit(false);
 			long newDbSize = FileUtils.sizeOfDirectory(new File(getDatabasePath()));
 			dbSizeThreshold = newDbSize + 1024 * 1024 * 500;
 			setProperty("_defaultSettings_", "dbSizeThreshold", Long.toString(dbSizeThreshold));
