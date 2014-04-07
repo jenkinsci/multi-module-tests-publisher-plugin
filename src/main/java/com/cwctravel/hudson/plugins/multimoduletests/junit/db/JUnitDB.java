@@ -2178,9 +2178,9 @@ private static final String JUNIT_ACTIVE_BUILDS_TABLE_INSERT_QUERY = "INSERT INT
 				else {
 					PreparedStatement pS = connection.prepareStatement(JUNIT_TESTS_UPDATE_PROPERTY);
 					try {
-						pS.setString(1, projectName);
-						pS.setString(2, propertyName);
-						pS.setString(3, value);
+						pS.setString(1, value);
+						pS.setString(2, projectName);
+						pS.setString(3, propertyName);
 						pS.executeUpdate();
 					}
 					finally {
