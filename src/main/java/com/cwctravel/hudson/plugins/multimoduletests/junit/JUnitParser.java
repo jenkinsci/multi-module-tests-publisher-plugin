@@ -172,6 +172,8 @@ public class JUnitParser implements ContentHandler {
 		else if(currentState == STATE_TEST_SUITE_START && "error".equals(qName)) {
 			currentSuiteErrorMessage = atts.getValue("message");
 			currentSuiteStatus = JUnitTestInfo.STATUS_ERROR;
+			currentSuiteErrorStackTrace = null;
+
 			stateStack.push(STATE_TEST_SUITE_ERROR_START);
 		}
 		else if(currentState == STATE_TEST_SUITE_START && "failure".equals(qName)) {
@@ -184,9 +186,11 @@ public class JUnitParser implements ContentHandler {
 			stateStack.push(STATE_TEST_SUITE_SKIP_START);
 		}
 		else if(currentState == STATE_TEST_SUITE_START && "system-out".equals(qName)) {
+			currentSuiteStdout = null;
 			stateStack.push(STATE_TEST_SUITE_SYSOUT_START);
 		}
 		else if(currentState == STATE_TEST_SUITE_START && "system-err".equals(qName)) {
+			currentSuiteStderr = null;
 			stateStack.push(STATE_TEST_SUITE_SYSERR_START);
 		}
 		else if(currentState == STATE_TEST_SUITE_START && "testcase".equals(qName)) {
@@ -214,11 +218,15 @@ public class JUnitParser implements ContentHandler {
 		else if(currentState == STATE_TEST_SUITE_TEST_CASE_START && "error".equals(qName)) {
 			currentTestCaseErrorMessage = atts.getValue("message");
 			currentTestCaseStatus = JUnitTestInfo.STATUS_ERROR;
+			currentTestCaseErrorStackTrace = null;
+
 			stateStack.push(STATE_TEST_SUITE_TEST_CASE_ERROR_START);
 		}
 		else if(currentState == STATE_TEST_SUITE_TEST_CASE_START && "failure".equals(qName)) {
 			currentTestCaseErrorMessage = atts.getValue("message");
 			currentTestCaseStatus = JUnitTestInfo.STATUS_FAIL;
+			currentSuiteErrorStackTrace = null;
+
 			stateStack.push(STATE_TEST_SUITE_TEST_CASE_FAILURE_START);
 		}
 		else if(currentState == STATE_TEST_SUITE_TEST_CASE_START && "skipped".equals(qName)) {
@@ -226,9 +234,11 @@ public class JUnitParser implements ContentHandler {
 			stateStack.push(STATE_TEST_SUITE_TEST_CASE_SKIP_START);
 		}
 		else if(currentState == STATE_TEST_SUITE_TEST_CASE_START && "system-out".equals(qName)) {
+			currentTestCaseStdout = null;
 			stateStack.push(STATE_TEST_SUITE_TEST_CASE_SYSOUT_START);
 		}
 		else if(currentState == STATE_TEST_SUITE_TEST_CASE_START && "system-err".equals(qName)) {
+			currentTestCaseStderr = null;
 			stateStack.push(STATE_TEST_SUITE_TEST_CASE_SYSERR_START);
 		}
 		else {
@@ -240,14 +250,30 @@ public class JUnitParser implements ContentHandler {
 	public void characters(char[] ch, int start, int length) throws SAXException {
 		Integer currentState = stateStack.peek();
 		if(currentState == STATE_TEST_SUITE_ERROR_START || currentState == STATE_TEST_SUITE_FAILURE_START) {
-			currentSuiteErrorStackTrace = new String(ch, start, length);
+			if(currentSuiteErrorStackTrace == null) {
+				currentSuiteErrorStackTrace = new String(ch, start, length);
+			}
+			else {
+				currentSuiteErrorStackTrace += new String(ch, start, length);
+			}
+
 		}
 		else if(currentState == STATE_TEST_SUITE_TEST_CASE_ERROR_START || currentState == STATE_TEST_SUITE_TEST_CASE_FAILURE_START) {
-			currentTestCaseErrorStackTrace = new String(ch, start, length);
+			if(currentTestCaseErrorStackTrace == null) {
+				currentTestCaseErrorStackTrace = new String(ch, start, length);
+			}
+			else {
+				currentTestCaseErrorStackTrace += new String(ch, start, length);
+			}
 		}
 		else if(currentState == STATE_TEST_SUITE_SYSOUT_START) {
 			try {
-				currentSuiteStdout = IOUtil.createReaderWriter(ch, start, length);
+				if(currentSuiteStdout == null) {
+					currentSuiteStdout = IOUtil.createReaderWriter(ch, start, length);
+				}
+				else {
+					currentSuiteStdout.getWriter().write(ch, start, length);
+				}
 			}
 			catch(IOException iE) {
 				LOGGER.log(Level.SEVERE, iE.getMessage(), iE);
@@ -255,7 +281,12 @@ public class JUnitParser implements ContentHandler {
 		}
 		else if(currentState == STATE_TEST_SUITE_SYSERR_START) {
 			try {
-				currentSuiteStderr = IOUtil.createReaderWriter(ch, start, length);
+				if(currentSuiteStderr == null) {
+					currentSuiteStderr = IOUtil.createReaderWriter(ch, start, length);
+				}
+				else {
+					currentSuiteStderr.getWriter().write(ch, start, length);
+				}
 			}
 			catch(IOException iE) {
 				LOGGER.log(Level.SEVERE, iE.getMessage(), iE);
@@ -263,7 +294,13 @@ public class JUnitParser implements ContentHandler {
 		}
 		else if(currentState == STATE_TEST_SUITE_TEST_CASE_SYSOUT_START) {
 			try {
-				currentTestCaseStdout = IOUtil.createReaderWriter(ch, start, length);
+				if(currentTestCaseStdout == null) {
+					currentTestCaseStdout = IOUtil.createReaderWriter(ch, start, length);
+				}
+				else {
+					currentTestCaseStdout.getWriter().write(ch, start, length);
+				}
+
 			}
 			catch(IOException iE) {
 				LOGGER.log(Level.SEVERE, iE.getMessage(), iE);
@@ -271,7 +308,12 @@ public class JUnitParser implements ContentHandler {
 		}
 		else if(currentState == STATE_TEST_SUITE_TEST_CASE_SYSERR_START) {
 			try {
-				currentTestCaseStderr = IOUtil.createReaderWriter(ch, start, length);
+				if(currentTestCaseStderr == null) {
+					currentTestCaseStderr = IOUtil.createReaderWriter(ch, start, length);
+				}
+				else {
+					currentTestCaseStderr.getWriter().write(ch, start, length);
+				}
 			}
 			catch(IOException iE) {
 				LOGGER.log(Level.SEVERE, iE.getMessage(), iE);
@@ -286,11 +328,13 @@ public class JUnitParser implements ContentHandler {
 			currentSuiteTestCaseIndex = 0;
 			currentSuiteStdout = null;
 			currentSuiteStderr = null;
+			currentSuiteErrorStackTrace = null;
 		}
 		else if(currentState == STATE_TEST_SUITE_TEST_CASE_START && "testcase".equals(qName)) {
 			insertTestCase(buildId, buildNumber, projectName, currentSuiteName, currentTestPackageName, currentTestClassName, currentTestCaseName, currentSuiteTestCaseIndex++, currentTestCaseStatus, currentSuiteTimestamp, currentTestCaseDuration, currentTestCaseErrorMessage, currentTestCaseErrorStackTrace, currentTestCaseStdout, currentTestCaseStderr);
 			currentTestCaseStdout = null;
 			currentTestCaseStderr = null;
+			currentTestCaseErrorStackTrace = null;
 
 		}
 

@@ -3,38 +3,45 @@ package com.cwctravel.hudson.plugins.multimoduletests.junit.io;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
-import java.io.StringWriter;
 import java.io.Writer;
 
 public class StringReaderWriter implements ReaderWriter {
-	private String data;
+	private StringBuilder data;
 
 	public StringReaderWriter() {
-		data = "";
+		data = new StringBuilder();
 	}
 
 	public StringReaderWriter(char[] data, int offset, int length) throws IOException {
 		char[] charArray = new char[length - offset];
 		System.arraycopy(data, offset, charArray, 0, length);
-		this.data = new String(charArray);
+		this.data = new StringBuilder(new String(charArray));
 	}
 
 	public Reader getReader() throws IOException {
-		return new StringReader(data);
+		return new StringReader(data.toString());
 	}
 
 	public Writer getWriter() throws IOException {
 
-		return new StringWriter() {
+		return new Writer() {
+
 			@Override
-			public void flush() {
-				StringReaderWriter.this.data = toString();
+			public void write(char[] data, int offset, int length) throws IOException {
+				StringReaderWriter.this.data.append(data, offset, length);
+
 			}
 
 			@Override
-			public void close() {
-				StringReaderWriter.this.data = toString();
+			public void flush() throws IOException {
+
 			}
+
+			@Override
+			public void close() throws IOException {
+
+			}
+
 		};
 	}
 
