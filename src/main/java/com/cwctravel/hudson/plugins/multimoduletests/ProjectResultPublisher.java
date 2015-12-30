@@ -2,12 +2,8 @@ package com.cwctravel.hudson.plugins.multimoduletests;
 
 import hudson.DescriptorExtensionList;
 import hudson.Extension;
-import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Util;
-import hudson.matrix.MatrixAggregatable;
-import hudson.matrix.MatrixAggregator;
-import hudson.matrix.MatrixBuild;
 import hudson.model.Action;
 import hudson.model.BuildListener;
 import hudson.model.Result;
@@ -21,7 +17,6 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Publisher;
 import hudson.tasks.Recorder;
-import hudson.tasks.test.TestResultAggregator;
 import hudson.tasks.test.TestResultParser;
 import hudson.util.DescribableList;
 
@@ -35,6 +30,7 @@ import java.util.logging.Logger;
 
 import javax.xml.parsers.ParserConfigurationException;
 
+import jenkins.MasterToSlaveFileCallable;
 import net.sf.json.JSONObject;
 
 import org.apache.tools.ant.DirectoryScanner;
@@ -48,7 +44,7 @@ import com.cwctravel.hudson.plugins.multimoduletests.junit.JUnitParser;
 import com.cwctravel.hudson.plugins.multimoduletests.junit.ProjectResult;
 import com.cwctravel.hudson.plugins.multimoduletests.junit.db.JUnitDB;
 
-public class ProjectResultPublisher extends Recorder implements Serializable, MatrixAggregatable {
+public class ProjectResultPublisher extends Recorder implements Serializable {
 	private static final long serialVersionUID = -4830492397041441842L;
 	private static final Logger LOGGER = Logger.getLogger(ProjectResultPublisher.class.getName());
 	private static List<TestResultParser> testResultParsers = null;
@@ -78,10 +74,6 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 	 */
 	public BuildStepMonitor getRequiredMonitorService() {
 		return BuildStepMonitor.BUILD;
-	}
-
-	public MatrixAggregator createAggregator(MatrixBuild build, Launcher launcher, BuildListener listener) {
-		return new TestResultAggregator(build, launcher, listener);
 	}
 
 	public void debugPrint() {
@@ -171,7 +163,7 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 		return new ProjectResultProjectAction(project);
 	}
 
-	private static final class ParseResultCallable implements FilePath.FileCallable<Void> {
+	private static final class ParseResultCallable extends MasterToSlaveFileCallable {
 		private static final long serialVersionUID = -2412534164383439939L;
 		private static final boolean checkTimestamps = true; // TODO: change to System.getProperty
 
