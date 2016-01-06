@@ -1,5 +1,6 @@
 package com.cwctravel.hudson.plugins.multimoduletests.junit;
 
+import hudson.FilePath;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.Run;
@@ -18,6 +19,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import jenkins.model.Jenkins;
 
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -65,7 +68,7 @@ public class ProjectResult extends MetaTabulatedResult {
 	public ProjectResult(AbstractProject<?, ?> project, JUnitSummaryInfo summary, String moduleNamesStr, String description) {
 		this.description = description;
 		try {
-			this.junitDB = new JUnitDB(project.getRootDir().getAbsolutePath());
+			this.junitDB = new JUnitDB(new FilePath(Jenkins.getInstance().getChannel(), project.getRootDir().getAbsolutePath()));
 			this.summary = summary;
 			moduleNames = new ArrayList<String>();
 			if(moduleNamesStr != null) {

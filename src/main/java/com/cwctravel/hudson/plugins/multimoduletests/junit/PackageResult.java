@@ -23,6 +23,7 @@
  */
 package com.cwctravel.hudson.plugins.multimoduletests.junit;
 
+import hudson.FilePath;
 import hudson.model.AbstractBuild;
 import hudson.model.Run;
 import hudson.tasks.junit.TestAction;
@@ -37,6 +38,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import jenkins.model.Jenkins;
 
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -74,7 +77,7 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 		this.parent = parent;
 		this.summary = summary;
 		try {
-			junitDB = new JUnitDB(getOwner().getProject().getRootDir().getAbsolutePath());
+			junitDB = new JUnitDB(new FilePath(Jenkins.getInstance().getChannel(), getOwner().getProject().getRootDir().getAbsolutePath()));
 		}
 		catch(SQLException sE) {
 			throw new JUnitException(sE);

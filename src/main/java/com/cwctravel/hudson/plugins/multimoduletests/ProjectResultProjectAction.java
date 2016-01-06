@@ -1,5 +1,6 @@
 package com.cwctravel.hudson.plugins.multimoduletests;
 
+import hudson.FilePath;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.tasks.test.TestResultProjectAction;
@@ -10,6 +11,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
+
+import jenkins.model.Jenkins;
 
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.Stapler;
@@ -97,7 +100,7 @@ public class ProjectResultProjectAction extends TestResultProjectAction implemen
 					AbstractProject<?, ?> project = projectResult.getOwner().getParent();
 					JUnitDB junitDB;
 					try {
-						junitDB = new JUnitDB(project.getRootDir().getAbsolutePath());
+						junitDB = new JUnitDB(new FilePath(Jenkins.getInstance().getChannel(), project.getRootDir().getAbsolutePath()));
 						List<JUnitSummaryInfo> historyList = junitDB.fetchTestModuleSummaryHistory(project.getName(), moduleName, MAX_HISTORY);
 						return new TrendGraph("/testReport/", "/" + moduleName + "/", "count", historyList);
 					}

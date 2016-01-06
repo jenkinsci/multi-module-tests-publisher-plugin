@@ -23,6 +23,7 @@
  */
 package com.cwctravel.hudson.plugins.multimoduletests.junit;
 
+import hudson.FilePath;
 import hudson.model.AbstractBuild;
 import hudson.model.Run;
 import hudson.tasks.junit.TestAction;
@@ -36,6 +37,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import jenkins.model.Jenkins;
 
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -72,7 +75,7 @@ public final class ClassResult extends TabulatedResult implements Comparable<Cla
 		this.parent = parent;
 		this.summary = summary;
 		try {
-			junitDB = new JUnitDB(getOwner().getProject().getRootDir().getAbsolutePath());
+			junitDB = new JUnitDB(new FilePath(Jenkins.getInstance().getChannel(), getOwner().getProject().getRootDir().getAbsolutePath()));
 		}
 		catch(SQLException sE) {
 			throw new JUnitException(sE);
@@ -146,8 +149,7 @@ public final class ClassResult extends TabulatedResult implements Comparable<Cla
 			return className.substring(idx + 1);
 	}
 
-	public @Override
-	String getSafeName() {
+	public @Override String getSafeName() {
 		return safe(getName());
 	}
 
