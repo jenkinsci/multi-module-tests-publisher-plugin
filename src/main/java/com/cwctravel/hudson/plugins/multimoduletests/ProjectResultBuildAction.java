@@ -1,5 +1,6 @@
 package com.cwctravel.hudson.plugins.multimoduletests;
 
+import hudson.FilePath;
 import hudson.model.BuildListener;
 import hudson.model.AbstractBuild;
 import hudson.tasks.junit.TestAction;
@@ -12,6 +13,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import jenkins.model.Jenkins;
 
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerProxy;
@@ -109,7 +112,7 @@ public class ProjectResultBuildAction extends AbstractTestResultAction<ProjectRe
 		if(summary == null) {
 			JUnitDB junitDB;
 			try {
-				junitDB = new JUnitDB(owner.getProject().getRootDir().getAbsolutePath());
+				junitDB = new JUnitDB(new FilePath(Jenkins.getInstance().getChannel(), owner.getProject().getRootDir().getAbsolutePath()));
 				summary = junitDB.fetchTestProjectSummaryForBuild(owner.getNumber(), owner.getProject().getName());
 			}
 			catch(SQLException e) {

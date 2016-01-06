@@ -1,5 +1,7 @@
 package com.cwctravel.hudson.plugins.multimoduletests.junit.db;
 
+import hudson.FilePath;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
@@ -650,7 +652,7 @@ private static final String JUNIT_ACTIVE_BUILDS_TABLE_INSERT_QUERY = "INSERT INT
 //@formatter:on	
 	private static final Logger LOGGER = Logger.getLogger(JUnitDB.class.getName());
 
-	private final String databaseDir;
+	private final FilePath databaseDir;
 
 	private String getDatabasePath() {
 		return databaseDir + "/JUnitDB";
@@ -763,7 +765,7 @@ private static final String JUNIT_ACTIVE_BUILDS_TABLE_INSERT_QUERY = "INSERT INT
 		return false;
 	}
 
-	public JUnitDB(String databaseDir) throws SQLException {
+	public JUnitDB(FilePath databaseDir) throws SQLException {
 		this.databaseDir = databaseDir;
 		initDB();
 	}

@@ -23,6 +23,7 @@
  */
 package com.cwctravel.hudson.plugins.multimoduletests.junit;
 
+import hudson.FilePath;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.Hudson;
@@ -41,6 +42,8 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import jenkins.model.Jenkins;
 
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
@@ -74,7 +77,7 @@ public class History extends hudson.tasks.junit.History {
 		try {
 			AbstractProject<?, ?> project = testObject.getOwner().getParent();
 			String projectName = project.getName();
-			JUnitDB junitDB = new JUnitDB(project.getRootDir().getAbsolutePath());
+			JUnitDB junitDB = new JUnitDB(new FilePath(Jenkins.getInstance().getChannel(), project.getRootDir().getAbsolutePath()));
 			if(testObject instanceof ProjectResult) {
 				historyItems = junitDB.summarizeTestProjectHistory(projectName, limit);
 			}

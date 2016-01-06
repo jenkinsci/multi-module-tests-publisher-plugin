@@ -24,6 +24,7 @@
 package com.cwctravel.hudson.plugins.multimoduletests.junit;
 
 import static java.util.Collections.emptyList;
+import hudson.FilePath;
 import hudson.model.AbstractBuild;
 import hudson.model.Run;
 import hudson.tasks.junit.TestAction;
@@ -40,6 +41,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import jenkins.model.Jenkins;
 
 import org.jvnet.localizer.Localizable;
 import org.kohsuke.stapler.export.Exported;
@@ -77,7 +80,7 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 		this.parent = parent;
 		this.testInfo = testInfo;
 		try {
-			this.junitDB = new JUnitDB(getOwner().getProject().getRootDir().getAbsolutePath());
+			this.junitDB = new JUnitDB(new FilePath(Jenkins.getInstance().getChannel(), getOwner().getProject().getRootDir().getAbsolutePath()));
 		}
 		catch(SQLException sE) {
 			throw new JUnitException(sE);

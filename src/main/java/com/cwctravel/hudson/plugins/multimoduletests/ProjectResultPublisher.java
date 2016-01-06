@@ -2,6 +2,7 @@ package com.cwctravel.hudson.plugins.multimoduletests;
 
 import hudson.DescriptorExtensionList;
 import hudson.Extension;
+import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Util;
 import hudson.model.Action;
@@ -31,6 +32,7 @@ import java.util.logging.Logger;
 import javax.xml.parsers.ParserConfigurationException;
 
 import jenkins.MasterToSlaveFileCallable;
+import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 
 import org.apache.tools.ant.DirectoryScanner;
@@ -102,7 +104,7 @@ public class ProjectResultPublisher extends Recorder implements Serializable {
 		final long buildTime = build.getTimestamp().getTimeInMillis();
 		final long nowMaster = System.currentTimeMillis();
 
-		File junitDBDir = build.getProject().getRootDir();
+		String junitDBDir = build.getProject().getRootDir().toString();
 		String testResultFileMask = Util.replaceMacro(config.getTestResultFileMask(), build.getBuildVariableResolver());
 
 		List<String> activeBuildIds = new ArrayList<String>();
@@ -180,9 +182,9 @@ public class ProjectResultPublisher extends Recorder implements Serializable {
 		private final List<String> moduleNames;
 		private final List<String> activeBuildIds;
 
-		private final File junitDBDir;
+		private final FilePath junitDBDir;
 
-		private ParseResultCallable(File junitDBDir, String buildId, int buildNumber, String projectName, String moduleNamesStr,
+		private ParseResultCallable(String junitDBDir, String buildId, int buildNumber, String projectName, String moduleNamesStr,
 				List<String> activeBuildIds, String testResults, long buildTime, long nowMaster, boolean keepLongStdio) {
 			this.buildId = buildId;
 			this.buildNumber = buildNumber;
@@ -193,7 +195,7 @@ public class ProjectResultPublisher extends Recorder implements Serializable {
 
 			this.keepLongStdio = keepLongStdio;
 
-			this.junitDBDir = junitDBDir;
+			this.junitDBDir = new FilePath(Jenkins.getInstance().getChannel(), junitDBDir);
 
 			this.moduleNames = new ArrayList<String>();
 			if(moduleNamesStr != null) {
@@ -220,7 +222,7 @@ public class ProjectResultPublisher extends Recorder implements Serializable {
 			File baseDir = ds.getBasedir();
 
 			try {
-				JUnitDB junitDB = new JUnitDB(junitDBDir.getAbsolutePath());
+				JUnitDB junitDB = new JUnitDB(junitDBDir);
 				junitDB.compactDB(projectName, activeBuildIds);
 
 				JUnitParser junitParser = new JUnitParser(junitDB);
