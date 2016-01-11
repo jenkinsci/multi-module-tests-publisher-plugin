@@ -5,9 +5,6 @@ import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Util;
-import hudson.matrix.MatrixAggregatable;
-import hudson.matrix.MatrixAggregator;
-import hudson.matrix.MatrixBuild;
 import hudson.model.Action;
 import hudson.model.BuildListener;
 import hudson.model.Result;
@@ -21,7 +18,6 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Publisher;
 import hudson.tasks.Recorder;
-import hudson.tasks.test.TestResultAggregator;
 import hudson.tasks.test.TestResultParser;
 import hudson.util.DescribableList;
 
@@ -39,6 +35,7 @@ import net.sf.json.JSONObject;
 
 import org.apache.tools.ant.DirectoryScanner;
 import org.apache.tools.ant.types.FileSet;
+import org.jenkinsci.remoting.RoleChecker;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.xml.sax.SAXException;
@@ -48,7 +45,7 @@ import com.cwctravel.hudson.plugins.multimoduletests.junit.JUnitParser;
 import com.cwctravel.hudson.plugins.multimoduletests.junit.ProjectResult;
 import com.cwctravel.hudson.plugins.multimoduletests.junit.db.JUnitDB;
 
-public class ProjectResultPublisher extends Recorder implements Serializable, MatrixAggregatable {
+public class ProjectResultPublisher extends Recorder implements Serializable {
 	private static final long serialVersionUID = -4830492397041441842L;
 	private static final Logger LOGGER = Logger.getLogger(ProjectResultPublisher.class.getName());
 	private static List<TestResultParser> testResultParsers = null;
@@ -78,10 +75,6 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 	 */
 	public BuildStepMonitor getRequiredMonitorService() {
 		return BuildStepMonitor.BUILD;
-	}
-
-	public MatrixAggregator createAggregator(MatrixBuild build, Launcher launcher, BuildListener listener) {
-		return new TestResultAggregator(build, launcher, listener);
 	}
 
 	public void debugPrint() {
@@ -237,6 +230,8 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 			}
 			return result;
 		}
+
+		public void checkRoles(RoleChecker arg0) throws SecurityException {}
 	}
 
 	@Extension

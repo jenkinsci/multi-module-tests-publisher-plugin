@@ -114,13 +114,18 @@ public class JUnitParser implements ContentHandler {
 		SAXParser saxParser = spf.newSAXParser();
 		XMLReader xmlReader = saxParser.getXMLReader();
 		xmlReader.setContentHandler(this);
-		InputStream iS = xmlReport.read();
 		try {
-			xmlReader.parse(new InputSource(iS));
-			persistTestCases();
+			InputStream iS = xmlReport.read();
+			try {
+				xmlReader.parse(new InputSource(iS));
+				persistTestCases();
+			}
+			finally {
+				iS.close();
+			}
 		}
-		finally {
-			iS.close();
+		catch(InterruptedException iE) {
+			LOGGER.log(Level.SEVERE, iE.getMessage(), iE);
 		}
 	}
 
