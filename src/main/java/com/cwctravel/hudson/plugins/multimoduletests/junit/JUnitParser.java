@@ -1,10 +1,10 @@
 package com.cwctravel.hudson.plugins.multimoduletests.junit;
 
+import hudson.FilePath;
 import hudson.tasks.test.TestObject;
 
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.text.ParseException;
@@ -98,7 +98,7 @@ public class JUnitParser implements ContentHandler {
 		this.junitDB = junitDB;
 	}
 
-	public void parse(int buildNumber, String buildId, String projectName, File xmlReport) throws SAXException, ParserConfigurationException, IOException, SQLException {
+	public void parse(int buildNumber, String buildId, String projectName, FilePath xmlReport) throws SAXException, ParserConfigurationException, IOException, SQLException {
 		this.buildNumber = buildNumber;
 		this.buildId = buildId;
 		this.projectName = projectName;
@@ -107,20 +107,20 @@ public class JUnitParser implements ContentHandler {
 		this.stateStack = new ArrayDeque<Integer>();
 		this.readerWriters = new ArrayList<ReaderWriter>();
 
-		this.reportFileName = xmlReport.getAbsolutePath();
+		this.reportFileName = xmlReport.getRemote();
 
 		SAXParserFactory spf = SAXParserFactory.newInstance();
 		spf.setNamespaceAware(false);
 		SAXParser saxParser = spf.newSAXParser();
 		XMLReader xmlReader = saxParser.getXMLReader();
 		xmlReader.setContentHandler(this);
-		FileReader fR = new FileReader(xmlReport);
+		InputStream iS = xmlReport.read();
 		try {
-			xmlReader.parse(new InputSource(fR));
+			xmlReader.parse(new InputSource(iS));
 			persistTestCases();
 		}
 		finally {
-			fR.close();
+			iS.close();
 		}
 	}
 

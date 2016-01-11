@@ -108,7 +108,6 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 
 		// Prepare to process results
 		final long buildTime = build.getTimestamp().getTimeInMillis();
-		final long nowMaster = System.currentTimeMillis();
 
 		File junitDBDir = build.getProject().getRootDir();
 		String testResultFileMask = Util.replaceMacro(config.getTestResultFileMask(), build.getBuildVariableResolver());
@@ -119,7 +118,53 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 		}
 
 		String moduleNames = Util.replaceMacro(config.getModuleNames(), build.getBuildVariableResolver());
-		build.getWorkspace().act(new ParseResultCallable(junitDBDir, build.getId(), build.getNumber(), build.getProject().getName(), moduleNames, activeBuildIds, testResultFileMask, buildTime, nowMaster, config.isKeepLongStdio()));
+		List<FilePath> filePaths = build.getWorkspace().act(new ParseResultCallable(testResultFileMask));
+
+		try {
+			String projectName = build.getProject().getName();
+			String buildId = build.getId();
+			int buildNumber = build.getNumber();
+
+			JUnitDB junitDB = new JUnitDB(junitDBDir.getAbsolutePath());
+			junitDB.compactDB(projectName, activeBuildIds);
+
+			JUnitParser junitParser = new JUnitParser(junitDB);
+			for(FilePath reportFile: filePaths) {
+				// only count files that were actually updated during this build
+				if((buildTime - 3000/*error margin*/<= reportFile.lastModified())) {
+					if(reportFile.length() != 0) {
+						junitParser.parse(buildNumber, buildId, projectName, reportFile);
+					}
+				}
+			}
+			junitDB.summarizeTestProjectForBuild(buildNumber, projectName);
+
+			List<String> moduleNamesList = new ArrayList<String>();
+			if(moduleNames != null) {
+				String[] moduleNamesArray = moduleNames.split(",");
+				for(String moduleName: moduleNamesArray) {
+					moduleName = moduleName.trim();
+					if(!moduleName.isEmpty()) {
+						moduleNamesList.add(moduleName);
+					}
+				}
+			}
+
+			for(String moduleName: moduleNamesList) {
+				junitDB.summarizeTestModuleForBuild(buildNumber, projectName, moduleName);
+				junitDB.summarizeTestPackagesForBuild(buildNumber, projectName, moduleName);
+
+			}
+		}
+		catch(SAXException sAE) {
+			throw new IOException(sAE);
+		}
+		catch(ParserConfigurationException pCE) {
+			throw new IOException(pCE);
+		}
+		catch(SQLException sE) {
+			throw new IOException(sE);
+		}
 
 		ProjectResultBuildAction action = new ProjectResultBuildAction(build, moduleNames, listener);
 		ProjectResult projectResult = action.getResult();
@@ -171,95 +216,26 @@ public class ProjectResultPublisher extends Recorder implements Serializable, Ma
 		return new ProjectResultProjectAction(project);
 	}
 
-	private static final class ParseResultCallable implements FilePath.FileCallable<Void> {
+	private static final class ParseResultCallable implements FilePath.FileCallable<List<FilePath>> {
 		private static final long serialVersionUID = -2412534164383439939L;
-		private static final boolean checkTimestamps = true; // TODO: change to System.getProperty
 
-		private final boolean keepLongStdio;
-
-		private final int buildNumber;
-
-		private final long buildTime;
-		private final long nowMaster;
-
-		private final String buildId;
-		private final String projectName;
 		private final String testResults;
-		private final List<String> moduleNames;
-		private final List<String> activeBuildIds;
 
-		private final File junitDBDir;
-
-		private ParseResultCallable(File junitDBDir, String buildId, int buildNumber, String projectName, String moduleNamesStr,
-				List<String> activeBuildIds, String testResults, long buildTime, long nowMaster, boolean keepLongStdio) {
-			this.buildId = buildId;
-			this.buildNumber = buildNumber;
-			this.projectName = projectName;
-			this.buildTime = buildTime;
+		private ParseResultCallable(String testResults) {
 			this.testResults = testResults;
-			this.nowMaster = nowMaster;
-
-			this.keepLongStdio = keepLongStdio;
-
-			this.junitDBDir = junitDBDir;
-
-			this.moduleNames = new ArrayList<String>();
-			if(moduleNamesStr != null) {
-				String[] moduleNamesArray = moduleNamesStr.split(",");
-				for(String moduleName: moduleNamesArray) {
-					moduleName = moduleName.trim();
-					if(!moduleName.isEmpty()) {
-						moduleNames.add(moduleName);
-					}
-				}
-			}
-
-			this.activeBuildIds = new ArrayList<String>();
-			if(activeBuildIds != null) {
-				this.activeBuildIds.addAll(activeBuildIds);
-			}
 		}
 
-		public Void invoke(File ws, VirtualChannel channel) throws IOException, InterruptedException {
-			final long nowSlave = System.currentTimeMillis();
+		public List<FilePath> invoke(File ws, VirtualChannel channel) throws IOException, InterruptedException {
+			List<FilePath> result = new ArrayList<FilePath>();
 			FileSet fs = Util.createFileSet(ws, testResults);
 			DirectoryScanner ds = fs.getDirectoryScanner();
 			String[] includedFiles = ds.getIncludedFiles();
 			File baseDir = ds.getBasedir();
-
-			try {
-				JUnitDB junitDB = new JUnitDB(junitDBDir.getAbsolutePath());
-				junitDB.compactDB(projectName, activeBuildIds);
-
-				JUnitParser junitParser = new JUnitParser(junitDB);
-				for(String value: includedFiles) {
-					File reportFile = new File(baseDir, value);
-					// only count files that were actually updated during this build
-					if((buildTime + (nowSlave - nowMaster) - 3000/*error margin*/<= reportFile.lastModified()) || !checkTimestamps) {
-						if(reportFile.length() != 0) {
-							junitParser.parse(buildNumber, buildId, projectName, reportFile);
-						}
-					}
-				}
-				junitDB.summarizeTestProjectForBuild(buildNumber, projectName);
-
-				for(String moduleName: moduleNames) {
-					junitDB.summarizeTestModuleForBuild(buildNumber, projectName, moduleName);
-					junitDB.summarizeTestPackagesForBuild(buildNumber, projectName, moduleName);
-
-				}
+			for(String value: includedFiles) {
+				FilePath filepath = new FilePath(new File(baseDir, value));
+				result.add(filepath);
 			}
-			catch(SAXException sAE) {
-				throw new IOException(sAE);
-			}
-			catch(ParserConfigurationException pCE) {
-				throw new IOException(pCE);
-			}
-			catch(SQLException sE) {
-				throw new IOException(sE);
-			}
-
-			return null;
+			return result;
 		}
 	}
 
