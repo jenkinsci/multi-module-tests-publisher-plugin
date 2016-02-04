@@ -532,16 +532,16 @@ public class JUnitDB {
 																							  "PROJECT_NAME VARCHAR(256) NOT NULL, " +
 																							  "BUILD_ID VARCHAR(256) NOT NULL, " +
 																							  "BUILD_NUMBER INTEGER NOT NULL, " +
-																							  "MODULE_NAME VARCHAR(256) NOT NULL, " +
-																							  "PACKAGE_NAME VARCHAR(256) NOT NULL, " +
-																							  "CLASS_NAME VARCHAR(512) NOT NULL, " +
-																							  "CASE_NAME VARCHAR(256) NOT NULL, " +
+																							  "MODULE_NAME VARCHAR(2048) NOT NULL, " +
+																							  "PACKAGE_NAME VARCHAR(4096) NOT NULL, " +
+																							  "CLASS_NAME VARCHAR(2048) NOT NULL, " +
+																							  "CASE_NAME VARCHAR(2048) NOT NULL, " +
 																							  "INDEX INT, " +
 																							  "STATUS INT, " +
 																							  "START_TIME TIMESTAMP, " +
 																							  "DURATION BIGINT, " +
-																							  "ERROR_MESSAGE VARCHAR(1024), " +
-																							  "ERROR_STACK_TRACE VARCHAR(8192), " +
+																							  "ERROR_MESSAGE VARCHAR(8192), " +
+																							  "ERROR_STACK_TRACE VARCHAR(524288), " +
 																							  "STDOUT CLOB(64 M), " + 
 																							  "STDERR CLOB(64 M) " + 
 																							 ")";
@@ -565,7 +565,7 @@ public class JUnitDB {
 						  "PROJECT_NAME VARCHAR(256) NOT NULL, " +
 						  "BUILD_ID VARCHAR(256) NOT NULL, " +
 						  "BUILD_NUMBER INTEGER NOT NULL, " +
-						  "MODULE_NAME VARCHAR(256) NOT NULL, " +
+						  "MODULE_NAME VARCHAR(2048) NOT NULL, " +
 						  "TOTAL_COUNT BIGINT NOT NULL, " +
 						  "PASS_COUNT BIGINT NOT NULL, " +
 						  "FAIL_COUNT BIGINT NOT NULL, " +
@@ -580,8 +580,8 @@ public class JUnitDB {
 						  "PROJECT_NAME VARCHAR(256) NOT NULL, " +
 						  "BUILD_ID VARCHAR(256) NOT NULL, " +
 						  "BUILD_NUMBER INTEGER NOT NULL, " +
-						  "MODULE_NAME VARCHAR(256) NOT NULL, " +
-						  "PACKAGE_NAME VARCHAR(256) NOT NULL, " +
+						  "MODULE_NAME VARCHAR(2048) NOT NULL, " +
+						  "PACKAGE_NAME VARCHAR(4096) NOT NULL, " +
 						  "TOTAL_COUNT BIGINT NOT NULL, " +
 						  "PASS_COUNT BIGINT NOT NULL, " +
 						  "FAIL_COUNT BIGINT NOT NULL, " +
