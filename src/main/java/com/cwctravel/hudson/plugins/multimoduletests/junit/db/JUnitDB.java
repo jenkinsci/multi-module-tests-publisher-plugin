@@ -541,7 +541,7 @@ public class JUnitDB {
 																							  "START_TIME TIMESTAMP, " +
 																							  "DURATION BIGINT, " +
 																							  "ERROR_MESSAGE VARCHAR(8192), " +
-																							  "ERROR_STACK_TRACE VARCHAR(524288), " +
+																							  "ERROR_STACK_TRACE CLOB(2 M), " +
 																							  "STDOUT CLOB(64 M), " + 
 																							  "STDERR CLOB(64 M) " + 
 																							 ")";
