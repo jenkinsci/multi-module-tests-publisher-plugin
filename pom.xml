@@ -23,11 +23,15 @@
   <packaging>hpi</packaging>
   
 <distributionManagement>
-	<repository>
-		<id>maven.jenkins-ci.org</id>
-		<url>http://maven.jenkins-ci.org/content/repositories/releases/</url>
-	</repository>
-</distributionManagement>  
+    <repository>
+        <id>maven.jenkins-ci.org</id>
+        <url>http://repo.jenkins-ci.org/releases/</url>
+   </repository>
+    <snapshotRepository>
+      <id>maven.jenkins-ci.org</id>
+      <url>http://repo.jenkins-ci.org/snapshots/</url>
+    </snapshotRepository>      
+</distributionManagement>
   
   <scm>
     <connection>scm:git:ssh://git@github.com/jenkinsci/multi-module-tests-publisher-plugin.git</connection>
