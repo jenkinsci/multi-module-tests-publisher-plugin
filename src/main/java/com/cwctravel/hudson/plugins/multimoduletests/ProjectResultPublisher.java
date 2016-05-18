@@ -1,26 +1,5 @@
 package com.cwctravel.hudson.plugins.multimoduletests;
 
-import hudson.DescriptorExtensionList;
-import hudson.Extension;
-import hudson.FilePath;
-import hudson.Launcher;
-import hudson.Util;
-import hudson.model.Action;
-import hudson.model.BuildListener;
-import hudson.model.Result;
-import hudson.model.Saveable;
-import hudson.model.AbstractBuild;
-import hudson.model.AbstractProject;
-import hudson.model.Descriptor;
-import hudson.model.Run;
-import hudson.remoting.VirtualChannel;
-import hudson.tasks.BuildStepDescriptor;
-import hudson.tasks.BuildStepMonitor;
-import hudson.tasks.Publisher;
-import hudson.tasks.Recorder;
-import hudson.tasks.test.TestResultParser;
-import hudson.util.DescribableList;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -30,8 +9,6 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import javax.xml.parsers.ParserConfigurationException;
-
-import net.sf.json.JSONObject;
 
 import org.apache.tools.ant.DirectoryScanner;
 import org.apache.tools.ant.types.FileSet;
@@ -44,6 +21,28 @@ import com.cwctravel.hudson.plugins.multimoduletests.ProjectResultBuildAction.Da
 import com.cwctravel.hudson.plugins.multimoduletests.junit.JUnitParser;
 import com.cwctravel.hudson.plugins.multimoduletests.junit.ProjectResult;
 import com.cwctravel.hudson.plugins.multimoduletests.junit.db.JUnitDB;
+
+import hudson.DescriptorExtensionList;
+import hudson.Extension;
+import hudson.FilePath;
+import hudson.Launcher;
+import hudson.Util;
+import hudson.model.AbstractBuild;
+import hudson.model.AbstractProject;
+import hudson.model.Action;
+import hudson.model.BuildListener;
+import hudson.model.Descriptor;
+import hudson.model.Result;
+import hudson.model.Run;
+import hudson.model.Saveable;
+import hudson.remoting.VirtualChannel;
+import hudson.tasks.BuildStepDescriptor;
+import hudson.tasks.BuildStepMonitor;
+import hudson.tasks.Publisher;
+import hudson.tasks.Recorder;
+import hudson.tasks.test.TestResultParser;
+import hudson.util.DescribableList;
+import net.sf.json.JSONObject;
 
 public class ProjectResultPublisher extends Recorder implements Serializable {
 	private static final long serialVersionUID = -4830492397041441842L;
@@ -74,7 +73,7 @@ public class ProjectResultPublisher extends Recorder implements Serializable {
 	 * Declares the scope of the synchronization monitor this {@link hudson.tasks.BuildStep} expects from outside.
 	 */
 	public BuildStepMonitor getRequiredMonitorService() {
-		return BuildStepMonitor.BUILD;
+		return BuildStepMonitor.NONE;
 	}
 
 	public void debugPrint() {
@@ -94,7 +93,8 @@ public class ProjectResultPublisher extends Recorder implements Serializable {
 	}
 
 	@Override
-	public boolean perform(final AbstractBuild<?, ?> build, Launcher launcher, final BuildListener listener) throws InterruptedException, IOException {
+	public boolean perform(final AbstractBuild<?, ?> build, Launcher launcher,
+			final BuildListener listener) throws InterruptedException, IOException {
 		String startMsg = "Analyzing test results with ProjectResultPublisher...";
 		listener.getLogger().println(startMsg);
 		LOGGER.fine(startMsg);
@@ -124,7 +124,7 @@ public class ProjectResultPublisher extends Recorder implements Serializable {
 			JUnitParser junitParser = new JUnitParser(junitDB);
 			for(FilePath reportFile: filePaths) {
 				// only count files that were actually updated during this build
-				if((buildTime - 3000/*error margin*/<= reportFile.lastModified())) {
+				if((buildTime - 3000/*error margin*/ <= reportFile.lastModified())) {
 					if(reportFile.length() != 0) {
 						junitParser.parse(buildNumber, buildId, projectName, reportFile);
 					}
