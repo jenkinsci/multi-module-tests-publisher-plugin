@@ -794,8 +794,8 @@ private static final String JUNIT_ACTIVE_BUILDS_TABLE_INSERT_QUERY = "INSERT INT
 
 					JUnitTestDetailInfo junitTestDetailInfo = junitTestInfo.getDetail();
 					if(junitTestDetailInfo != null) {
-						pS.setString(12, truncate(junitTestDetailInfo.getErrorMessage(), 1024));
-						pS.setString(13, truncate(junitTestDetailInfo.getErrorStackTrace(), 8192));
+						pS.setString(12, truncate(junitTestDetailInfo.getErrorMessage(), 8192));
+						pS.setString(13, truncate(junitTestDetailInfo.getErrorStackTrace(), 2 * 1024 * 1024));
 
 						Reader stdoutReader = junitTestDetailInfo.getStdout();
 						if(stdoutReader != null) {
