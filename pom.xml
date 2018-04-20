@@ -13,7 +13,7 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>1.587</version><!-- which version of Jenkins is this plugin built against? -->
+    <version>3.8</version><!-- which version of Jenkins is this plugin built against? -->
   </parent>
   
 
@@ -22,16 +22,10 @@
   <version>1.45-SNAPSHOT</version>
   <packaging>hpi</packaging>
   
-<distributionManagement>
-    <repository>
-        <id>maven.jenkins-ci.org</id>
-        <url>http://repo.jenkins-ci.org/releases/</url>
-   </repository>
-    <snapshotRepository>
-      <id>maven.jenkins-ci.org</id>
-      <url>http://repo.jenkins-ci.org/snapshots/</url>
-    </snapshotRepository>      
-</distributionManagement>
+	<properties>
+		<jenkins.version>1.625.3</jenkins.version>
+		<java.level>7</java.level>
+	</properties>
   
   <scm>
     <connection>scm:git:ssh://git@github.com/jenkinsci/multi-module-tests-publisher-plugin.git</connection>
@@ -44,14 +38,14 @@
   <repositories>
     <repository>
       <id>repo.jenkins-ci.org</id>
-      <url>http://repo.jenkins-ci.org/public/</url>
+      <url>https://repo.jenkins-ci.org/public/</url>
     </repository>
   </repositories>
 
   <pluginRepositories>
     <pluginRepository>
       <id>repo.jenkins-ci.org</id>
-      <url>http://repo.jenkins-ci.org/public/</url>
+      <url>https://repo.jenkins-ci.org/public/</url>
     </pluginRepository>
   </pluginRepositories>
   <build>

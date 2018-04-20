@@ -1,6 +1,7 @@
 <!--
   This view is used to render the installed plugins page.
 -->
+<?jelly escape-by-default='true'?>
 <div>
 	Allows test results to be grouped by module 
 </div>
