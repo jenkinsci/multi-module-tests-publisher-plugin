@@ -62,8 +62,8 @@ public final class PackageResult extends MetaTabulatedResult implements Comparab
 	private final JUnitDB junitDB;
 	private final TestObject parent;
 
-	private WeakReference<History> historyReference;
-	private WeakReference<List<ClassResult>> childrenReference;
+	private transient WeakReference<History> historyReference;
+	private transient WeakReference<List<ClassResult>> childrenReference;
 
 	private final JUnitSummaryInfo summary;
 	private JUnitSummaryInfo previousSummary;
