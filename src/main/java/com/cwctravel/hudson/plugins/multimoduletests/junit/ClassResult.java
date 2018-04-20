@@ -47,6 +47,8 @@ import com.cwctravel.hudson.plugins.multimoduletests.junit.db.JUnitMetricsInfo;
 import com.cwctravel.hudson.plugins.multimoduletests.junit.db.JUnitSummaryInfo;
 import com.cwctravel.hudson.plugins.multimoduletests.junit.db.JUnitTestInfo;
 
+import javax.annotation.CheckForNull;
+
 /**
  * Cumulative test result of a test class.
  * 
@@ -60,8 +62,10 @@ public final class ClassResult extends TabulatedResult implements Comparable<Cla
 	private JUnitDB junitDB;
 	private final TestObject parent;
 
-	private WeakReference<History> historyReference;
-	private WeakReference<List<CaseResult>> childrenReference;
+	@CheckForNull
+	private transient WeakReference<History> historyReference;
+	@CheckForNull
+	private transient WeakReference<List<CaseResult>> childrenReference;
 
 	private final JUnitSummaryInfo summary;
 	private JUnitSummaryInfo previousSummary;

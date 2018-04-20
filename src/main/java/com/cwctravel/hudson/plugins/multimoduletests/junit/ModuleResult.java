@@ -54,6 +54,8 @@ import com.cwctravel.hudson.plugins.multimoduletests.junit.db.JUnitTestInfo;
 import com.cwctravel.hudson.plugins.multimoduletests.junit.io.IOUtil;
 import com.cwctravel.hudson.plugins.multimoduletests.junit.io.StringReaderWriter;
 
+import javax.annotation.CheckForNull;
+
 /**
  * Root of all the test results for one build.
  * 
@@ -69,9 +71,12 @@ public final class ModuleResult extends MetaTabulatedResult {
 
 	private final JUnitDB junitDB;
 
-	private WeakReference<History> historyReference;
-	private WeakReference<List<PackageResult>> childrenReference;
-	private WeakReference<Map<String, PackageResult>> packageResultMapReference;
+	@CheckForNull
+	private transient WeakReference<History> historyReference;
+	@CheckForNull
+	private transient WeakReference<List<PackageResult>> childrenReference;
+	@CheckForNull
+	private transient WeakReference<Map<String, PackageResult>> packageResultMapReference;
 
 	private final JUnitSummaryInfo summary;
 	private JUnitSummaryInfo previousSummary;

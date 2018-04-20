@@ -66,7 +66,7 @@ public final class CaseResult extends TestResult implements Comparable<CaseResul
 	private final JUnitDB junitDB;
 	private final TestObject parent;
 
-	private WeakReference<History> historyReference;
+	private transient WeakReference<History> historyReference;
 
 	private final JUnitTestInfo testInfo;
 	private JUnitTestInfo previousTestInfo;
